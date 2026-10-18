@@ -35,4 +35,7 @@ nsis:
   # keep the user's tasks and mail when uninstalling (they live in %APPDATA%\FollowUp)
   deleteAppDataOnUninstall: false
   artifactName: FollowUp-Setup-${version}.${ext}
-# The update server is set by scripts/dist.mjs from FOLLOWUP_UPDATE_URL.
+# Updates: with no publish setting here, electron-builder uses the GitHub repository from
+# package.json, so installed copies update from that repository's GitHub releases (each release
+# needs the .exe, .blockmap and latest.yml attached). FOLLOWUP_UPDATE_URL (scripts/dist.mjs)
+# replaces that with your own HTTPS folder.

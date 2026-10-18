@@ -6,9 +6,9 @@ import type { UpdateStatus } from '@shared/integrations'
 import { getSettings } from './meta'
 
 /**
- * Auto-update via electron-updater (NSIS). The update server is either built into
- * the installer (app-update.yml, from FOLLOWUP_UPDATE_URL at build time) or set in
- * Settings → Updates. Updates download in the background and install on restart.
+ * Auto-update via electron-updater (NSIS). The update source is built into the installer
+ * (app-update.yml: the project's GitHub releases, or FOLLOWUP_UPDATE_URL at build time) or
+ * set in Settings → Updates. Updates download in the background and install on restart.
  */
 
 let status: UpdateStatus = { state: 'dev', current: app.getVersion() }
@@ -32,7 +32,10 @@ function set(patch: Partial<UpdateStatus>): void {
 function builtInFeed(): string | null {
   const file = join(process.resourcesPath, 'app-update.yml')
   if (!existsSync(file)) return null
-  return /^url:\s*(\S+)/m.exec(readFileSync(file, 'utf8'))?.[1] ?? 'built in'
+  const yml = readFileSync(file, 'utf8')
+  const field = (k: string) => new RegExp(`^${k}:\\s*(\\S+)`, 'm').exec(yml)?.[1]
+  if (field('provider') === 'github' && field('owner') && field('repo')) return `GitHub releases of ${field('owner')}/${field('repo')}`
+  return field('url') ?? 'built in'
 }
 
 const overrideFeed = () => process.env['FOLLOWUP_UPDATE_URL']?.trim() || getSettings().updates.feedUrl.trim() || null
@@ -52,7 +55,7 @@ function applyFeed(): boolean {
 function friendly(e: unknown): string {
   const msg = String((e as Error)?.message ?? e).split('\n')[0]
   if (/ENOTFOUND|EAI_AGAIN|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED/.test(msg)) return 'Could not reach the update server. Check your internet connection.'
-  if (/404|latest\.yml/.test(msg)) return 'No release was found on the update server (latest.yml is missing).'
+  if (/404|latest\.yml|No published versions|Unable to find latest version/.test(msg)) return 'No release was found on the update server (latest.yml is missing).'
   if (/sha512 checksum mismatch|signature/i.test(msg)) return `The downloaded update failed verification and was discarded. ${msg.slice(0, 120)}`
   return msg.slice(0, 240)
 }

@@ -290,7 +290,7 @@ Add it to `tick()` in `src/main/desktop.ts`, which runs every 30 seconds while t
 | App icon | `build/icon.ico` / `build/icon.png`; regenerate with `npm run icon` (`scripts/make-icon.mjs`) |
 | App name / id / installer options | `electron-builder.yml` (`appId`, `productName`, `nsis.*`), `package.json` (`productName`); keep the AppUserModelID in `desktop.ts` (`APP_USER_MODEL_ID`) in sync with `appId` |
 | Built-in Google/Microsoft sign-in client IDs | `.env` with `MAIN_VITE_GOOGLE_CLIENT_ID`, `MAIN_VITE_GOOGLE_CLIENT_SECRET`, `MAIN_VITE_MICROSOFT_CLIENT_ID` at build time |
-| Update server baked into the installer | `FOLLOWUP_UPDATE_URL` when running `npm run dist` |
+| Where updates come from | `repository` in `package.json` (GitHub releases), or `FOLLOWUP_UPDATE_URL` when running `npm run dist` |
 
 ## Checklist for any change
 

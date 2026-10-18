@@ -115,14 +115,14 @@ See [Settings & data](12-settings-and-data.md) for backups, export and moving to
 
 ## Updates
 
-**Settings → Updates** shows your version and the update status. When an update server is configured (built into the installer, or entered in Settings), FollowUp:
+**Settings → Updates** shows your version and the update status. FollowUp updates itself from the [GitHub releases](https://github.com/miller-hack/FollowUp/releases) of the project (or from another server, if you enter one in Settings). It:
 
 - checks for updates 15 seconds after start-up and then every 6 hours;
 - downloads updates in the background;
 - shows **Restart to update** in the sidebar, the tray and Settings;
 - installs the update the next time it quits if you don't click that.
 
-Turn off **Download updates automatically** to only check when you click **Check for updates**. Only `https://` update servers are accepted.
+Turn off **Download updates automatically** to only check when you click **Check for updates**. Only `https://` update servers are accepted. Every update is checked against its published SHA-512 hash before it's installed.
 
 ## Behind the scenes: what happens when FollowUp starts
 

@@ -42,7 +42,7 @@ npm run dist
 
 | Variable | Effect |
 |---|---|
-| `FOLLOWUP_UPDATE_URL` | Builds the update server address into the installer (see [Auto-update](#auto-update)) |
+| `FOLLOWUP_UPDATE_URL` | Builds your own update server into the installer, instead of GitHub releases (see [Auto-update](#auto-update)) |
 | `FOLLOWUP_VERSION` | Overrides the version from `package.json` |
 | `FOLLOWUP_OUT` | Output folder (default `dist`) |
 | `FOLLOWUP_RELEASE_TEST` | Builds under the isolated release-test identity (used by `npm run test:update`) |
@@ -88,37 +88,38 @@ The version lives in `package.json`. Database changes are always forward migrati
    ```bash
    git push origin main --tags
    ```
-6. On GitHub, create a **Release** from the tag. Attach `FollowUp-Setup-x.y.z.exe`, paste the changelog entry and the SHA-256 hash.
-7. If you run an update server, upload the three `dist/` files to it (see below).
+6. On GitHub, create a **Release** from the tag. Paste the changelog entry and the SHA-256 hash, and attach **all three** files from `dist/`: `FollowUp-Setup-x.y.z.exe`, `FollowUp-Setup-x.y.z.exe.blockmap` and `latest.yml`. Installed copies update from these (see below), so don't rename them.
+7. Publish it as a normal release, not a draft or pre-release: installed copies only see the latest published release.
 
 ## Auto-update
 
 Installed copies can update themselves using [electron-updater](https://www.electron.build/auto-update) (`src/main/services/updater.ts`).
 
+**Where updates come from.** The installer has an update source built in (`resources\app-update.yml`):
+- **By default: the project's GitHub releases.** `package.json` names the repository, and electron-builder turns that into a `github` update source. Settings → Updates shows it as *built in: GitHub releases of owner/repo*. A fork that changes `repository` in `package.json` automatically updates from its own releases.
+- **Your own server instead:** build with `FOLLOWUP_UPDATE_URL` (see below). That's any HTTPS folder of static files (a web server, an S3 or R2 bucket…) holding `latest.yml`, the installer and its `.blockmap`.
+- **Per user:** **Settings → Updates → Update server** overrides the built-in source.
+
 **How it works:**
-1. The **update server** is just a folder of static files on any HTTPS host (a web server, S3 or R2 bucket, GitHub Pages…). It holds `latest.yml`, the installer and its `.blockmap`.
-2. The app learns where that folder is from:
-   - the address built in at build time (`FOLLOWUP_UPDATE_URL`, stored in `resources\app-update.yml`), **or**
-   - **Settings → Updates → Update server**, which overrides it.
-   Without either, Settings → Updates says that updates are not configured.
-3. About 15 seconds after start-up, and then every 6 hours (if automatic checks are on), it downloads `latest.yml` and compares versions.
-4. A newer version is downloaded in the background. Its SHA-512 is checked against `latest.yml`; a mismatch discards the download.
-5. When ready, **Restart to update** appears in the sidebar, the tray menu and Settings. Otherwise the update installs the next time the app quits.
+1. About 15 seconds after start-up, and then every 6 hours (if automatic checks are on), the app looks up the latest release, downloads its `latest.yml` and compares versions.
+2. A newer version is downloaded in the background. Its SHA-512 is checked against `latest.yml`; a mismatch discards the download.
+3. When ready, **Restart to update** appears in the sidebar, the tray menu and Settings. Otherwise the update installs the next time the app quits.
 
 **Rules:**
 - Only `https://` addresses are accepted (`http://localhost` and `127.0.0.1` are allowed for testing), because updates are programs.
 - Development runs never check for updates.
+- If there's no release yet, or a release lacks `latest.yml`, Settings → Updates shows "No release was found on the update server". Nothing else is affected.
+- GitHub allows about 60 checks per hour from one internet address without signing in, which is plenty at one check every 6 hours.
 
-**Publishing an update:**
+**Publishing an update on GitHub:** follow the [release checklist](#release-checklist). Copies installed from any earlier release pick up the new one within 6 hours, or straight away with **Check for updates**.
+
+**Publishing an update on your own server:**
 
 ```powershell
 $env:FOLLOWUP_UPDATE_URL = "https://downloads.example.com/followup/"; npm run dist
 ```
 
 Then upload everything in `dist/` to that folder, replacing the old `latest.yml`. Users already on a build with that address update automatically. For other users, enter the address in Settings → Updates.
-
-> GitHub Releases can also serve as the update server through electron-builder's `github` provider. That needs a change to `scripts/dist.mjs` and `updater.ts`; see the electron-builder documentation.
-
 ## Code signing
 
 Without a signature, Windows SmartScreen shows "Windows protected your PC" the first time someone runs the installer. Users can click **More info → Run anyway**, but a signature removes the warning and proves who built the file.

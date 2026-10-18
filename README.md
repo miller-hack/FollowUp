@@ -123,7 +123,7 @@ It's **local-first**. Everything lives in one SQLite database on your own PC, an
 - Automatic daily backups and JSON export.
 - Background jobs survive restarts and retry with backoff.
 - Runs in the system tray so reminders and follow-ups keep working when the window is closed.
-- Auto-update from your own HTTPS server.
+- Auto-update from this repository's GitHub releases (or your own HTTPS server).
 
 ## Screenshots
 
@@ -146,7 +146,7 @@ It's **local-first**. Everything lives in one SQLite database on your own PC, an
 **Requirements and what to expect:**
 - **Windows:** Windows 10 or 11, 64-bit.
 - **Where your data goes:** `%APPDATA%\FollowUp`. Uninstalling keeps it.
-- **Updates:** an installed copy can update itself when an update server is configured ([details](docs/developer/building-and-releasing.md#auto-update)).
+- **Updates:** installed copies update themselves from this repository's [releases](https://github.com/miller-hack/FollowUp/releases): the new version downloads in the background and installs when you restart ([details](docs/developer/building-and-releasing.md#auto-update)).
 
 ## Your first 10 minutes
 
@@ -273,7 +273,7 @@ FollowUp/
 
 Ideas for future versions; contributions are welcome:
 
-- Code-signed installer and a public update feed
+- Code-signed installer
 - Microsoft (Outlook) calendars through Microsoft Graph
 - Push email (IMAP IDLE / Gmail push) instead of polling
 - Attachments and rich text when composing email

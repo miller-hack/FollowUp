@@ -20,7 +20,7 @@ Open **Settings** (bottom of the sidebar).
 | | Start FollowUp when I sign in to Windows | Off | Starts hidden in the tray (installed app only). |
 | **Updates** | Version, status, *Check for updates*, *Restart and update* | — | |
 | | Download updates automatically | On | Checks 15 s after start and every 6 h. |
-| | Update server | Built into the installer, if any | An `https://` folder containing `latest.yml` and the installer. See [Building and releasing](../developer/building-and-releasing.md#auto-update). |
+| | Update server | Built in: FollowUp's GitHub releases | Leave empty to use the built-in source. To use your own server instead, enter an `https://` folder containing `latest.yml` and the installer. See [Building and releasing](../developer/building-and-releasing.md#auto-update). |
 | **Tags** | Rename, recolour, delete | — | Tags are shared by all spaces. |
 | **Data & backups** | Data folder path + **Open folder** | `%APPDATA%\FollowUp` | |
 | | **Back up now** · **Export JSON** · recent backups | daily automatic backup | See below. |

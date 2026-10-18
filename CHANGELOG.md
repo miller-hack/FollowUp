@@ -14,6 +14,7 @@ The first public, open-source release.
 - **More tests and CI.**
   - Component tests for the screens.
   - A GitHub Actions pipeline on Windows: typecheck, tests, the end-to-end test and an installer build.
+- **Automatic updates from GitHub.** Installed copies check this repository's releases, download a new version in the background and install it when you restart.
 - **Documentation.**
   - A full user guide covering every feature, how it works behind the scenes, and example scenarios.
   - Developer documentation and design decision records.

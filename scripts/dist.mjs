@@ -1,10 +1,11 @@
 // Builds the Windows installer.
 //
-//   npm run dist                                   installer without auto-update
-//   FOLLOWUP_UPDATE_URL=https://… npm run dist     installer that updates itself from that folder
+//   npm run dist                                   installer that updates itself from the GitHub
+//                                                  releases of the repository in package.json
+//   FOLLOWUP_UPDATE_URL=https://… npm run dist     installer that updates itself from that folder instead
 //
-// Upload everything in dist/ (FollowUp-Setup-x.y.z.exe, its .blockmap and latest.yml) to the
-// update folder to publish a release. Optional:
+// To publish a release, attach everything in dist/ (FollowUp-Setup-x.y.z.exe, its .blockmap and
+// latest.yml) to the GitHub release, or upload it to the update folder. Optional:
 //   FOLLOWUP_VERSION=1.2.3      override the version from package.json
 //   FOLLOWUP_OUT=dist-x         output folder (default dist)
 //   FOLLOWUP_RELEASE_TEST=1     build under a separate identity (app id, name, data folder, updater
@@ -50,4 +51,4 @@ const run = (cmd, a, env = process.env) => {
 // the main process uses this as its Windows app id (ADR-009)
 run('npx', ['electron-vite', 'build'], { ...process.env, MAIN_VITE_APP_ID: releaseTest ? TEST_ID : '' })
 run('npx', args)
-console.log(url ? `\nBuilt with updates from ${url}` : '\nBuilt without an update server (Settings → Updates can set one later).')
+console.log(url ? `\nBuilt with updates from ${url}` : '\nBuilt with updates from the GitHub releases of the repository in package.json.')
