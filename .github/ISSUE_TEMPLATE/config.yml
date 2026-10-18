@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/miller-hack/FollowUp/security/advisories/new
+    about: Please report security problems privately, not as a public issue.
+  - name: User guide
+    url: https://github.com/miller-hack/FollowUp/blob/main/docs/README.md
+    about: How every feature works, with step-by-step instructions, troubleshooting and example scenarios.

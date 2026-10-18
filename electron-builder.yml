@@ -1,0 +1,38 @@
+appId: app.followup.desktop
+productName: FollowUp
+copyright: Copyright © 2026 Current-I
+directories:
+  buildResources: build
+  output: dist
+# everything the app needs is bundled into out/ by electron-vite
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  # Code signing (recommended; unsigned installers trigger a SmartScreen warning):
+  #   - a .pfx certificate: set CSC_LINK (path or https URL) and CSC_KEY_PASSWORD before `npm run dist`
+  #   - or Azure Trusted Signing: add `azureSignOptions` here (see electron.build/code-signing-win)
+  # Once signed, set publisherName (the certificate's CN) so auto-updates are only
+  # installed when they carry the same signature:
+  # signtoolOptions:
+  #   publisherName: Your Company Ltd
+nsis:
+  oneClick: false
+  # per-user install: no admin rights needed, and updates install silently
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: FollowUp
+  # "FollowUp" in Settings → Apps (the version has its own column)
+  uninstallDisplayName: FollowUp
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  # keep the user's tasks and mail when uninstalling (they live in %APPDATA%\FollowUp)
+  deleteAppDataOnUninstall: false
+  artifactName: FollowUp-Setup-${version}.${ext}
+# The update server is set by scripts/dist.mjs from FOLLOWUP_UPDATE_URL.

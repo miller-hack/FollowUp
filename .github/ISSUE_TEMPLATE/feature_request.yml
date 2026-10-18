@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an idea or an improvement for FollowUp.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe what you're trying to do and what gets in the way today.
+      placeholder: I send the same weekly report every Friday and have to…
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+      description: How you imagine it working. Mock-ups are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds or alternatives you've considered
+      description: For example an automation, a template or a custom field that gets close.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to help build this (see CONTRIBUTING.md).

@@ -1,0 +1,9 @@
+FollowUp
+Copyright 2026 Current-I
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The Windows installer also contains third-party open-source software, including
+Electron and Chromium (see LICENSE.electron.txt and LICENSES.chromium.html in the
+installation folder) and the npm packages listed in package-lock.json, each under
+its own license.

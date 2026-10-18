@@ -1,0 +1,82 @@
+name: Bug report
+description: Something in FollowUp doesn't work as it should.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! The details below help us reproduce and fix it.
+        **Please remove personal information** (email addresses, names, task contents) from screenshots and text.
+        For a security problem, don't use this form: see the repository's security policy.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Describe the problem. Include any message FollowUp showed, word for word.
+      placeholder: When I click "Send" on a reply, the email stays in "Sending…" and…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact steps that make the problem happen.
+      placeholder: |
+        1. Go to Inbox
+        2. Open a thread and click Reply
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: FollowUp version
+      description: Shown in Settings → Updates.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Tasks, lists and views
+        - Planning (sprints, time, goals, dashboards)
+        - Email / Inbox
+        - Follow-ups
+        - Calendar
+        - Automations
+        - AI assistant
+        - Integrations (Slack, Teams)
+        - Settings, backup and data
+        - Installation, updates, tray, start-up
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Sometimes
+        - Happened once
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or anything else
+      description: Drag images here. For email problems, say which provider (Gmail, Outlook…) and how you connected (app password or sign-in).

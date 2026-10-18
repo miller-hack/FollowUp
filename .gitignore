@@ -1,0 +1,19 @@
+node_modules/
+out/
+dist/
+*.log
+*.tsbuildinfo
+dist-*/
+
+# private working notes and research (not published)
+.10x/
+follow-up-requirement-detail.md
+
+# local secrets and generated output
+.env
+.env.*
+!.env.example
+dist-update/
+
+# local Claude Code sessions
+.claude/
