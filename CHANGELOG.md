@@ -4,6 +4,9 @@ All notable changes to FollowUp are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Fixed
+- **New events no longer seem to vanish.** If an event you save starts outside the dates on screen (for example "New event" late on a Sunday, which starts at midnight on Monday), the calendar now moves to the event's date.
+
 ## [1.0.0] - 2026-10-18
 
 The first public, open-source release.
