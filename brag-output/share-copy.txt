@@ -1,0 +1,1 @@
+FollowUp puts tasks, email, follow-up sequences, a calendar, automations and an AI assistant in one Windows app, and all of it lives in a single SQLite file on your own PC. Its follow-ups chase people who haven't replied and stop the moment they answer. No cloud account, no telemetry, no subscription; it's free and open source: github.com/miller-hack/FollowUp
