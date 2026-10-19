@@ -18,6 +18,10 @@
 
 <img src="docs/images/home.png" alt="FollowUp home screen" width="900">
 
+**▶ [Watch the 50-second tour](docs/video/followup-tour.mp4)**
+
+<a href="docs/video/followup-tour.mp4"><img src="docs/video/followup-tour.jpg" alt="Watch the FollowUp video tour" width="640"></a>
+
 </div>
 
 ---
