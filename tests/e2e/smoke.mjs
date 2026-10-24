@@ -387,24 +387,35 @@ try {
 
   await step('add email account through settings', async () => {
     await page.getByRole('link', { name: 'Settings' }).click()
-    await page.getByRole('button', { name: 'Email (app password)' }).click()
-    await page.getByRole('dialog').getByLabel('Provider').selectOption('custom')
-    await page.getByLabel('Email address').fill('me@example.com')
-    await page.getByLabel('Your name (shown to recipients)').fill('Me Myself')
-    await page.getByLabel(/App password/).fill('app-pass')
-    for (const [k, port] of [['IMAP', IMAP_PORT], ['SMTP', SMTP_PORT]]) {
-      await page.getByLabel(`${k} server`).fill('127.0.0.1')
-      await page.getByLabel(`${k} port`).fill(String(port))
-      await page.getByLabel(`${k} security`).selectOption('starttls')
+    await page.getByRole('button', { name: 'Add email account' }).click()
+    const dialog = page.getByRole('dialog')
+    // an address without @ is pointed out, not accepted
+    await dialog.getByLabel('Email address').fill('me.example.com')
+    await dialog.getByText(/including the @/).waitFor()
+    // a Gmail address offers Google sign-in first, and an app password on request
+    await dialog.getByLabel('Email address').fill('someone@gmail.com')
+    await dialog.getByRole('button', { name: 'Sign in with Google' }).waitFor()
+    await dialog.getByRole('button', { name: 'Use an app password instead' }).click()
+    await dialog.getByLabel(/^App password/).waitFor()
+    await shot('19a-account-gmail')
+    // example.com publishes no mail settings: FollowUp says so and opens the server fields
+    await dialog.getByLabel('Email address').fill('me@example.com')
+    await dialog.getByLabel('Your name (shown to recipients)').fill('Me Myself')
+    await dialog.getByText(/couldn’t find the settings for/).waitFor({ timeout: 30_000 })
+    await dialog.getByLabel(/^Password/).fill('wrong-pass')
+    for (const [k, port] of [['Incoming (IMAP)', IMAP_PORT], ['Outgoing (SMTP)', SMTP_PORT]]) {
+      await dialog.getByLabel(`${k} server`).fill('127.0.0.1')
+      await dialog.getByLabel(`${k} port`).fill(String(port))
+      await dialog.getByLabel(`${k} security`).selectOption('starttls')
     }
-    await page.getByPlaceholder('Username (defaults to the email address)').fill('me')
-    await page.getByRole('dialog').getByRole('button', { name: 'Test connection' }).click()
-    await page.getByText('Receiving (IMAP):').waitFor()
-    await page.getByText('Sending (SMTP):').waitFor()
-    if (await page.getByText(/Sign-in failed|refused|not found/).count()) throw new Error('connection test failed')
+    await dialog.getByLabel('Username').fill('me')
+    // a wrong password is caught before the account is added
+    await dialog.getByRole('button', { name: 'Add account' }).click()
+    await dialog.getByText(/Receiving \(IMAP\):.*Sign-in failed/).waitFor({ timeout: 30_000 })
     await shot('19-account-dialog')
-    await page.getByRole('button', { name: 'Add account' }).click()
-    await page.getByText(/Synced .* ago/).waitFor({ timeout: 20_000 })
+    await dialog.getByLabel(/^Password/).fill('app-pass')
+    await dialog.getByRole('button', { name: 'Add account' }).click()
+    await page.getByText(/Synced .* ago/).waitFor({ timeout: 30_000 })
   })
 
   await step('inbox shows synced mail safely', async () => {

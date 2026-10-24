@@ -4,7 +4,17 @@ All notable changes to FollowUp are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-24
+
+### Changed
+- **Adding an email account starts from your address.** Type the address and FollowUp finds the settings itself: Gmail, Outlook and other well-known providers; **Google Workspace and Microsoft 365 on company or university domains** (from the domain's mail servers); published settings; and your own mail hosting (`mail.yourdomain.com`). It then asks only for what's needed: *Sign in with Google/Microsoft*, an app password, or your mailbox password.
+- The connection is tested before the account is added, and problems are explained for your provider (which password, which username).
+- Installers can have *Sign in with Google/Microsoft* built in, so team members just click the button.
+
 ### Fixed
+- Addresses without an `@` and usernames with spaces are no longer accepted.
+- "Server not found" replaces raw `getaddrinfo ENOTFOUND` errors.
+- Google's "Error 403: access_denied" and Microsoft's "Need admin approval" are explained in the sign-in dialog, and the Google setup steps match the current Google Cloud console.
 - **New events no longer seem to vanish.** If an event you save starts outside the dates on screen (for example "New event" late on a Sunday, which starts at midnight on Monday), the calendar now moves to the event's date.
 
 ## [1.0.0] - 2026-10-18
@@ -66,7 +76,8 @@ The first complete version, built in six phases:
 - **Phase 5, AI:** the assistant (Claude, OpenAI, Ollama) with approval cards, triage, Quick add, summaries, weekly review.
 - **Phase 6, integrations and release:** Slack and Teams, Sign in with Google/Microsoft, the Windows installer, auto-update, `.ics` export.
 
-[Unreleased]: https://github.com/miller-hack/FollowUp/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/miller-hack/FollowUp/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/miller-hack/FollowUp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/miller-hack/FollowUp/releases/tag/v1.0.0
 [0.6.1]: https://github.com/miller-hack/FollowUp/blob/main/docs/developer/project-history.md#20-hardening-release-061-full-code-review
 [0.6.0]: https://github.com/miller-hack/FollowUp/blob/main/docs/developer/project-history.md#12-delivery-phases

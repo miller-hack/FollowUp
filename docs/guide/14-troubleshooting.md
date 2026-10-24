@@ -32,10 +32,22 @@ That area hit an error, but the rest of the app keeps working. Click **Try again
 
 ## Email
 
-**"Sign-in failed" / authentication errors with an app password.**
-- Use an **app password**, not your normal password (Gmail, iCloud, Yahoo, Zoho and Fastmail require one; the preset explains where to create it).
-- For Gmail, **IMAP must be enabled** and **2-Step Verification** on.
-- **Outlook.com / Microsoft 365 no longer accept app passwords** for most accounts: use **Sign in with Microsoft**.
+**"Sign-in failed" when adding an account.**
+- **Username:** it is almost always the **full email address** (`name@company.com`), not your name. FollowUp fills it in for you; spaces aren't allowed.
+- **Which password:**
+  - **Gmail / Google Workspace, iCloud, Yahoo, Zoho, Fastmail** need an **app password**, not your normal password. The dialog says where to create one.
+  - **Your company's own mail hosting** (cPanel, Plesk, …) uses the **normal mailbox password**, the one you use for webmail.
+  - **Outlook.com / Microsoft 365** mostly refuse passwords: use **Sign in with Microsoft**.
+- For Gmail, **IMAP must be enabled**. App passwords need **2-Step Verification**, and a Workspace administrator can turn them off.
+
+**"Server not found".**
+The server name doesn't exist. Retype the email address so FollowUp detects the settings again. Many company and university addresses are run by Google or Microsoft (e.g. `@cloud.university.edu` → Gmail servers), so `mail.<domain>` doesn't exist for them.
+
+**Google shows "Error 403: access_denied".**
+The Google project behind *Sign in with Google* is in testing, and your address isn't on its **Test users** list. Whoever set up the sign-in adds it under Google Cloud → Google Auth Platform → Audience → Test users. Then try again.
+
+**Microsoft shows "Need admin approval".**
+Your organisation only lets approved apps read mail. Ask your IT administrator to approve *FollowUp*, or connect a different account.
 
 **"Sign in again" on a Google account every week.**
 A Google OAuth client in *Testing* mode issues sign-ins that expire after 7 days. Publish or verify your OAuth app in Google Cloud, or use an app password account instead.

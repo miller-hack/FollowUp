@@ -18,6 +18,7 @@ Read the relevant ADR before changing the area it covers. If you want to change 
 | [010](010-inline-mail-images-and-compaction.md) | Pictures inside emails are stored once as files; the database is compacted; backups are capped | Data |
 | [011](011-editor-list-and-renderer-tests.md) | Tiptap 3 editor, virtualised List view, component tests | UI |
 | [012](012-ci-and-release-test-isolation.md) | The CI pipeline, and a release test that can never touch an installed FollowUp | Build |
+| [013](013-mail-provider-detection.md) | Adding an account starts from the address; the provider and servers are detected | Email |
 
 ## Writing a new ADR
 

@@ -1,7 +1,7 @@
 {
     "name": "followup",
     "productName": "FollowUp",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Offline-first work management desktop app: tasks, email follow-ups, calendar, automation and AI.",
     "main": "./out/main/index.js",
     "author": "Current-I",

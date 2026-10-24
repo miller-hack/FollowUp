@@ -188,8 +188,15 @@ export function MailAccountDialog({ onClose, signIn }: { onClose: () => void; si
           <>
             <label className="block">
               <span className="text-xs text-muted">{passwordLabel}</span>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••••" className="mt-1" autoComplete="off" />
-              <span className="mt-1 block text-[11px] text-muted">Stored encrypted with Windows (DPAPI) on this PC only.</span>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={detected?.passwordKind === 'normal' || notFound ? 'Mailbox password' : 'Paste the app password'} className="mt-1" autoComplete="off" />
+              <span className="mt-1 block text-[11px] text-muted">
+                Stored encrypted with Windows (DPAPI) on this PC only.
+                {oauth && (
+                  <button type="button" className="ml-2 text-accent hover:underline" onClick={() => setUsePassword(false)}>
+                    Back to Sign in with {PROVIDER_NAME[oauth]}
+                  </button>
+                )}
+              </span>
             </label>
             <div>
               <button type="button" className="text-xs text-accent hover:underline" onClick={() => setAdvanced(!advanced)}>

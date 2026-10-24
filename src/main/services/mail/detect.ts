@@ -174,7 +174,11 @@ export async function detectMailSettings(emailIn: string, deps: DetectDeps = def
     deps.fetchText(`https://autoconfig.thunderbird.net/v1.1/${encodeURIComponent(domain)}`),
     deps.fetchText(`https://autoconfig.${domain}/mail/config-v1.1.xml`)
   ])
-  const mx = mxRecords.sort((a, b) => a.priority - b.priority).map((r) => r.exchange.toLowerCase().replace(/\.$/, ''))
+  // a null MX (".") means the domain receives no mail: never probe an empty host (that would be this PC)
+  const mx = mxRecords
+    .sort((a, b) => a.priority - b.priority)
+    .map((r) => r.exchange.toLowerCase().replace(/\.$/, ''))
+    .filter((h) => h.includes('.'))
 
   const hosted = byMx(mx)
   if (hosted) return hosted

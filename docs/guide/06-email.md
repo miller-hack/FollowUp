@@ -15,44 +15,57 @@ It's a focused email client, not a full replacement for Outlook or Gmail. It syn
 
 ## Connecting an account
 
-Go to **Settings → Accounts**. Pick the option that matches your provider:
+Go to **Settings → Accounts** and click **Add email account**. You only type your **email address**: FollowUp works out the rest.
 
-| Option | Use it for | What you need |
-|---|---|---|
-| **Sign in with Google** | Gmail and Google Workspace. Also adds **Google Calendar**. | A Google OAuth client ID (one-time setup, guided below), unless your build includes one. |
-| **Sign in with Microsoft** | Outlook.com, Hotmail, Microsoft 365 mail | A Microsoft application (client) ID (one-time setup, guided), unless your build includes one. |
-| **Email (app password)** | Any provider over IMAP/SMTP. Presets: Gmail, iCloud Mail, Yahoo Mail, Zoho Mail, Fastmail, Outlook / Microsoft 365, Other. | An **app password** from your provider (the preset tells you where to create one), or your normal password for servers that still allow it. |
-| **Calendar (CalDAV)** | Calendars only; see [Calendar](08-calendar.md) | Server URL, username, app password |
+| You'll be asked for | When |
+|---|---|
+| **Sign in with Google** (recommended) | Gmail and **Google Workspace** addresses, including company and university domains whose mail is run by Google. Also adds **Google Calendar**. |
+| **Sign in with Microsoft** | Outlook.com, Hotmail, Live and **Microsoft 365** addresses |
+| An **app password** | Gmail/Workspace (if you prefer it to sign-in), iCloud, Yahoo, Zoho, Fastmail. The dialog says where to create it. |
+| Your **mailbox password** | Your company's own mail hosting (for example cPanel or Plesk): the password you use for webmail |
 
-### Email with an app password
-1. Choose the **Provider**. The server settings fill in, with help text on where to create an app password.
-2. Enter your **email address**, **your name** (shown to recipients) and the **app password**.
-3. Optional, under the advanced settings:
-   - IMAP and SMTP host, port and security (SSL/TLS or STARTTLS);
-   - username (defaults to the email address);
+**Calendar (CalDAV)** adds a calendar only; see [Calendar](08-calendar.md).
+
+### Adding an account step by step
+1. Click **Add email account** and type your **email address**, then your name (shown to recipients).
+   - The address must be complete, with the `@` (for example `name@company.com`); FollowUp points out a missing one.
+2. FollowUp shows what it found, for example *Google Workspace · recognised from the domain's mail servers* or *Mail server mail.company.com*.
+3. Either click **Sign in with Google/Microsoft**, or enter the password the dialog asks for.
+4. Optional, under **Show server settings**:
+   - IMAP and SMTP server, port and security (SSL/TLS or STARTTLS), already filled in;
+   - username: the full email address unless your provider says otherwise (it can't contain spaces);
    - how much history to import: the last **7, 30 (default), 90 or 365 days**.
-4. **Test connection** checks receiving (IMAP) and sending (SMTP) separately and explains any error in plain English.
-5. **Add account.** The first sync starts at once.
+5. Click **Add account**. FollowUp first tests receiving (IMAP) and sending (SMTP). If either fails, it explains why in plain English and **doesn't add the account** until both work. **Add anyway** exists for servers that are only reachable from the office network.
 
-> **Outlook.com and many Microsoft 365 accounts no longer allow app passwords.** Use *Sign in with Microsoft* instead.
-> **Gmail:** app passwords need 2-Step Verification. *Sign in with Google* is easier and adds your calendar.
+**Behind the scenes: how the settings are found** (in order, each step limited to a few seconds):
+1. Well-known domains: gmail.com, outlook.com, hotmail.com, yahoo.com, icloud.com, zoho.com, fastmail.com and similar.
+2. The domain's **MX records** (where its mail is delivered). These reveal Google Workspace, Microsoft 365, Zoho, Fastmail, iCloud and Yahoo behind a company domain.
+3. Published settings: Thunderbird's public settings database (by domain, then by the mail host's domain), then the domain's own `autoconfig` file.
+4. Common server names: `mail.<domain>` and `imap.<domain>` on port 993, with SMTP on 465 or 587. FollowUp only checks that the port answers; it never sends your password while searching.
+
+Only the domain name leaves your PC during the search, never your address or password. If nothing is found, the server fields open so you can type them in.
+
+> **Outlook.com and most Microsoft 365 accounts no longer allow passwords** over IMAP. Use *Sign in with Microsoft*.
+> **Gmail and Google Workspace app passwords** need 2-Step Verification, and a Workspace administrator can turn them off. *Sign in with Google* avoids both.
 
 ### Sign in with Google or Microsoft
-1. Click the button. If no client ID is set up yet, FollowUp shows a short guide.
+1. Click the button. Installers built with sign-in IDs (see [Building and releasing](../developer/building-and-releasing.md#built-in-sign-in)) go straight to step 2. Otherwise FollowUp shows a short guide the first time:
    - **Google:**
      1. In console.cloud.google.com, create a project.
      2. Enable the *Gmail API* and the *CalDAV API*.
-     3. Set up the *OAuth consent screen* (External; add yourself as a test user).
-     4. Create an *OAuth client ID* of type *Desktop app*.
-     5. Paste the client ID and client secret.
+     3. In *Google Auth Platform*, fill in *Branding*; under *Audience* choose External, keep it in Testing and add **every address that will sign in** as a *test user*.
+     4. Under *Data access*, add the scopes `openid`, `userinfo.email`, `userinfo.profile`, `https://mail.google.com/` and `calendar`.
+     5. Under *Clients*, create a client of type *Desktop app*, then paste its client ID and client secret.
    - **Microsoft:**
      1. In portal.azure.com → *Microsoft Entra ID* → *App registrations* → *New registration*, choose "any organizational directory and personal Microsoft accounts".
-     2. Set the redirect URI to *Public client/native* `http://localhost`.
+     2. Set the redirect URI to *Public client/native* `http://localhost`, and under *Authentication* allow public client flows.
      3. Paste the application (client) ID.
 2. Your **own browser** opens the provider's sign-in page; FollowUp never shows a login window of its own. Approve access.
 3. FollowUp adds the mail account (and, for Google, a Google Calendar account) and starts syncing.
 
 When a sign-in expires or is revoked, the account card shows **Sign in again**. Signing in again with the same address updates the existing accounts; it also converts an app-password account to sign-in.
+
+> **"Error 403: access_denied" from Google** means your address isn't on the Google project's *Test users* list. Whoever set up the sign-in adds it under Google Auth Platform → Audience → Test users. **"Need admin approval" from Microsoft** means your organisation's IT administrator has to approve FollowUp.
 
 > Google keeps apps in "Testing" mode for personal use. In that mode a sign-in expires after **7 days** unless the app is verified by Google. Use an app password if that's a nuisance.
 

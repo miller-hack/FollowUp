@@ -51,6 +51,38 @@ npm run dist
 
 **The icon** is generated from code by `npm run icon` into `build/icon.png` and `build/icon.ico`. Replace those two files to rebrand (see [Customizing](customizing.md)).
 
+## Built-in sign-in
+
+"Sign in with Google" and "Sign in with Microsoft" need an app registration with each provider. If an installer has the IDs built in, users just click the button. Otherwise each user is walked through creating their own the first time.
+
+**One-time setup by the maintainer:**
+1. **Google:** in console.cloud.google.com, create a project and enable the *Gmail API* and *CalDAV API*.
+   - *Google Auth Platform → Branding:* the app name and your email.
+   - *Audience:* External, Testing. Add every address that will sign in under *Test users* (up to 100). Anyone else gets "Error 403: access_denied".
+   - *Data access:* `openid`, `userinfo.email`, `userinfo.profile`, `https://mail.google.com/`, `calendar`.
+   - *Clients:* create a *Desktop app* client and note its client ID and secret.
+2. **Microsoft:** in portal.azure.com → *Microsoft Entra ID → App registrations → New registration*.
+   - Supported accounts: any organizational directory and personal Microsoft accounts.
+   - Redirect URI: *Public client/native*, `http://localhost`. Under *Authentication*, allow public client flows.
+   - Optional (helps company tenants): *API permissions → Office 365 Exchange Online → Delegated*: `IMAP.AccessAsUser.All`, `SMTP.Send`.
+   - Note the *Application (client) ID*. No secret is needed.
+
+**Building them in:**
+- **Locally:** put them in `.env` in the project folder. That file is ignored by Git and never uploaded.
+  ```
+  MAIN_VITE_GOOGLE_CLIENT_ID=…apps.googleusercontent.com
+  MAIN_VITE_GOOGLE_CLIENT_SECRET=GOCSPX-…
+  MAIN_VITE_MICROSOFT_CLIENT_ID=00000000-…
+  ```
+  `npm run dist` and `npm run dev` pick them up.
+- **In CI:** add repository secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `MICROSOFT_CLIENT_ID` (GitHub → Settings → Secrets and variables → Actions). The workflow passes them to the installer build.
+
+**Limits to know:**
+- While the Google project is in **Testing**, only test users can sign in, and Google asks them to sign in again every **7 days**. Removing both limits needs Google's verification of the restricted Gmail scope, which includes an annual security assessment.
+- A Desktop-app client secret isn't treated as confidential by Google; it is still kept out of the repository.
+- Some Microsoft 365 organisations only allow apps their administrator approved; users there see "Need admin approval".
+- A user's own client ID entered in the app (Settings → Accounts) overrides the built-in one.
+
 ## Versioning
 
 FollowUp uses [semantic versioning](https://semver.org): `MAJOR.MINOR.PATCH`.

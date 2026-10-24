@@ -105,6 +105,12 @@ describe('provider detection', () => {
     expect(await detectMailSettings('x@nowhere.example', deps())).toBeNull()
   })
 
+  it('never probes an empty host from a null MX record', async () => {
+    const d = deps({ mx: { 'nomail.example': ['.', ''] } })
+    expect(await detectMailSettings('x@nomail.example', d)).toBeNull()
+    expect(d.calls.filter((c) => c.startsWith('tcp')).every((c) => /^tcp [a-z]+\.nomail\.example:/.test(c))).toBe(true)
+  })
+
   it('parses a local-part username', () => {
     const xml = AUTOCONFIG.replaceAll('%EMAILADDRESS%', '%EMAILLOCALPART%')
     expect(parseAutoconfig(xml, 'me@shop.example')).toMatchObject({ username: 'local', imap: { host: 'secure.host.example' } })
