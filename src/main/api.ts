@@ -20,6 +20,7 @@ import * as mail from './services/mail/index'
 import * as send from './services/mail/send'
 import * as sequences from './services/mail/sequences'
 import * as store from './services/mail/store'
+import { detectMailSettings } from './services/mail/detect'
 import { friendlyMailError } from './services/mail/transport'
 import type { CalDavConfig } from '@shared/mail'
 import { applySettings, markQuitting } from './desktop'
@@ -128,6 +129,7 @@ export const api: Api = {
   createAccount: accounts.createAccount,
   updateAccount: accounts.updateAccount,
   deleteAccount: accounts.deleteAccount,
+  getMailSettingsFor: (email) => detectMailSettings(email),
   testAccount: async (input) => {
     if (input.kind === 'mail') return { ...(await accounts.testMailConnection(input)), caldav: null }
     const cfg = input.config as CalDavConfig

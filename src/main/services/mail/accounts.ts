@@ -192,13 +192,13 @@ export async function testMailConnection(input: AccountInput & { accountId?: str
       await s.folders()
     })
   } catch (e) {
-    imap = friendlyMailError(e)
+    imap = friendlyMailError(e, !!c.oauth, c.preset)
   }
   const t = smtpTransport(c.smtp, auth)
   try {
     await t.verify()
   } catch (e) {
-    smtp = friendlyMailError(e)
+    smtp = friendlyMailError(e, !!c.oauth, c.preset)
   } finally {
     t.close()
   }
@@ -284,7 +284,7 @@ export async function syncMailAccount(accountId: string): Promise<{ added: numbe
     )
   } catch (e) {
     onAuthError(acc, e)
-    run('UPDATE accounts SET last_error = ? WHERE id = ?', friendlyMailError(e, !!cfg.oauth), accountId)
+    run('UPDATE accounts SET last_error = ? WHERE id = ?', friendlyMailError(e, !!cfg.oauth, cfg.preset), accountId)
     throw e
   }
   return { added }

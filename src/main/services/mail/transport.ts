@@ -124,14 +124,24 @@ export function isAuthError(e: unknown): boolean {
   return !!err.authenticationFailed || err.code === 'EAUTH' || /auth|credentials|login|password|535|534/i.test(errText(err))
 }
 
-export function friendlyMailError(e: unknown, oauth = false): string {
-  const err = e as LibError
+const APP_PASSWORD_PROVIDERS: Record<string, string> = { gmail: 'Google', icloud: 'iCloud', yahoo: 'Yahoo', zoho: 'Zoho', fastmail: 'Fastmail' }
+
+/**
+ * @param oauth the account signs in with Google / Microsoft
+ * @param preset MAIL_PRESETS id: decides whether an app password or the mailbox password is expected
+ */
+export function friendlyMailError(e: unknown, oauth = false, preset?: string): string {
+  const err = (e ?? {}) as LibError
   const text = errText(err)
-  if (isAuthError(e))
-    return oauth
-      ? 'The server refused the sign-in. Sign in again in Settings → Accounts (and check that IMAP is enabled for the mailbox).'
-      : 'Sign-in failed. Check the username and app password (a normal password usually does not work).'
-  if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') return 'Server not found. Check the host name and your internet connection.'
+  if (isAuthError(e)) {
+    if (oauth) return 'The server refused the sign-in. Sign in again in Settings → Accounts (and check that IMAP is enabled for the mailbox).'
+    if (preset === 'outlook') return 'Microsoft refused the password. Most Outlook and Microsoft 365 mailboxes only allow “Sign in with Microsoft”.'
+    const provider = preset ? APP_PASSWORD_PROVIDERS[preset] : undefined
+    if (provider) return `Sign-in failed. ${provider} needs an app password here, not your normal password, and the username must be the full email address.`
+    return 'Sign-in failed. Use the full email address as the username and the password of this mailbox (the one you use for webmail).'
+  }
+  if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN' || /ENOTFOUND|EAI_AGAIN/.test(text))
+    return 'Server not found. Check the server name (FollowUp fills it in from your email address) and your internet connection.'
   if (err.code === 'ECONNREFUSED') return 'Connection refused. Check the port and TLS setting.'
   if (err.code === 'ETIMEDOUT' || /timed? ?out/i.test(text)) return 'The server did not respond in time.'
   if (/certificate|self.signed|TLS|SSL/i.test(text)) return `Secure connection failed: ${text}`

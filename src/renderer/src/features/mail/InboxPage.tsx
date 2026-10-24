@@ -68,7 +68,7 @@ export function InboxPage() {
         <div className="max-w-sm text-center">
           <Mail size={36} className="mx-auto mb-3 text-muted" />
           <h1 className="text-lg font-semibold">Connect your email</h1>
-          <p className="mt-1 mb-4 text-muted">Add an IMAP/SMTP account with an app password to read, send and follow up on email here.</p>
+          <p className="mt-1 mb-4 text-muted">Add your email account: type your address and FollowUp finds the right settings.</p>
           <Button variant="primary" onClick={() => (window.location.hash = '#/settings')}>Open Settings → Accounts</Button>
         </div>
       </div>

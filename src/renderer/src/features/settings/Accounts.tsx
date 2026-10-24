@@ -10,6 +10,7 @@ import { Button, IconButton, Input, Modal } from '@/components/ui'
 import { Select } from '@/components/selects'
 import type { OAuthProvider } from '@shared/integrations'
 import { ClientSetup, OAuthClientLinks, SignInButtons, useSignIn } from './SignIn'
+import { MailAccountDialog } from './MailAccountDialog'
 
 export function AccountsSection() {
   const { data: accounts = [] } = useAccounts()
@@ -73,19 +74,20 @@ export function AccountsSection() {
         ))}
       </ul>
       <div className="flex flex-wrap gap-2">
-        <SignInButtons signIn={(p) => void signIn(p)} busy={!!waiting} />
-        <Button onClick={() => setAdding('mail')}>
-          <Plus size={14} /> Email (app password)
+        <Button variant="primary" onClick={() => setAdding('mail')}>
+          <Plus size={14} /> Add email account
         </Button>
+        <SignInButtons signIn={(p) => void signIn(p)} busy={!!waiting} />
         <Button onClick={() => setAdding('caldav')}>
           <Plus size={14} /> Calendar (CalDAV)
         </Button>
       </div>
       <p className="mt-2 text-xs text-muted">
-        Google adds Gmail and Google Calendar; Microsoft adds Outlook.com / Microsoft 365 mail. Other providers work with an app password.
+        Type your email address and FollowUp finds the right settings. Google adds Gmail and Google Calendar; Microsoft adds Outlook.com / Microsoft 365 mail.
       </p>
       <OAuthClientLinks onEdit={setEditClient} />
-      {(adding || editing) && <AccountDialog kind={editing?.kind ?? adding!} account={editing} onClose={() => (setAdding(null), setEditing(null))} />}
+      {adding === 'mail' && !editing && <MailAccountDialog onClose={() => setAdding(null)} signIn={(p) => void signIn(p)} />}
+      {(adding === 'caldav' || editing) && <AccountDialog kind={editing?.kind ?? adding!} account={editing} onClose={() => (setAdding(null), setEditing(null))} />}
       {editClient && <ClientSetup provider={editClient} onClose={() => setEditClient(null)} onSaved={() => setEditClient(null)} />}
       {dialogs}
     </div>
@@ -237,7 +239,10 @@ function AccountDialog({ kind, account, onClose }: { kind: 'mail' | 'caldav'; ac
           </>
         )}
         <label className="block">
-          <span className="text-xs text-muted">App password{account ? ' (leave empty to keep the saved one)' : ''}</span>
+          <span className="text-xs text-muted">
+            {kind === 'mail' && presetId === 'custom' ? 'Password' : 'App password'}
+            {account ? ' (leave empty to keep the saved one)' : ''}
+          </span>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••••••••" className="mt-1" autoComplete="off" />
           <span className="mt-1 block text-[11px] text-muted">Stored encrypted with Windows (DPAPI) on this PC only.</span>
         </label>

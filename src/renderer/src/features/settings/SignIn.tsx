@@ -47,6 +47,19 @@ export function useSignIn() {
               <p className="mt-1 text-muted">
                 A {NAME[waiting]} sign-in page opened in your default browser. Allow access to mail{waiting === 'google' ? ' and calendar' : ''}, then come back here.
               </p>
+              {waiting === 'google' && (
+                <p className="mt-2 rounded-lg bg-hover px-3 py-2 text-xs text-muted">
+                  Google shows <b>“Error 403: access_denied”</b>? The Google project FollowUp uses is in testing, and only the addresses on its <b>Test users</b> list
+                  can sign in. Ask whoever set up FollowUp’s Google sign-in to add your address (Google Cloud → Google Auth Platform → Audience → Test users), then
+                  try again. Or close this and add the account with an app password.
+                </p>
+              )}
+              {waiting === 'microsoft' && (
+                <p className="mt-2 rounded-lg bg-hover px-3 py-2 text-xs text-muted">
+                  Microsoft says <b>“Need admin approval”</b>? Your organisation only lets apps its administrator approved read mail. Ask your IT administrator to
+                  approve “FollowUp”.
+                </p>
+              )}
               <Button className="mt-3" onClick={() => void api.cancelSignIn()}>Cancel</Button>
             </div>
           </div>
@@ -86,9 +99,10 @@ const STEPS: Record<OAuthProvider, React.ReactNode> = {
     <ol className="list-decimal space-y-1 pl-5">
       <li>Open console.cloud.google.com and create a project (any name).</li>
       <li>APIs &amp; Services → Library: enable <b>Gmail API</b> and <b>CalDAV API</b>.</li>
-      <li>OAuth consent screen: choose <b>External</b>, fill in the app name and your email, and add your Google address as a <b>test user</b>.</li>
-      <li>Credentials → Create credentials → OAuth client ID → Application type <b>Desktop app</b>.</li>
-      <li>Copy the <b>Client ID</b> and <b>Client secret</b> here.</li>
+      <li>Google Auth Platform → <b>Branding</b>: app name and your email.</li>
+      <li><b>Audience</b>: External, keep it in Testing, and under <b>Test users</b> add <b>every address that will sign in</b> (yours and your teammates’). Anyone not on this list gets “Error 403: access_denied”.</li>
+      <li><b>Data access</b>: add the scopes <code>openid</code>, <code>…/auth/userinfo.email</code>, <code>…/auth/userinfo.profile</code>, <code>https://mail.google.com/</code> and <code>…/auth/calendar</code>.</li>
+      <li><b>Clients</b> → Create client → Application type <b>Desktop app</b>. Copy the <b>Client ID</b> and <b>Client secret</b> here.</li>
     </ol>
   ),
   microsoft: (
@@ -96,6 +110,7 @@ const STEPS: Record<OAuthProvider, React.ReactNode> = {
       <li>Open portal.azure.com → Microsoft Entra ID → App registrations → New registration.</li>
       <li>Supported accounts: <b>any organizational directory and personal Microsoft accounts</b>.</li>
       <li>Redirect URI: platform <b>Public client/native (mobile &amp; desktop)</b>, value <code>http://localhost</code>.</li>
+      <li>Authentication: set <b>Allow public client flows</b> to Yes.</li>
       <li>Copy the <b>Application (client) ID</b> here. No secret is needed.</li>
     </ol>
   )

@@ -52,6 +52,26 @@ export interface AccountInput {
   password?: string
 }
 
+/** IMAP/SMTP settings worked out from an email address (Settings → Add email account). */
+export interface DetectedMailSettings {
+  /** MAIL_PRESETS id ('custom' for anything else) */
+  preset: string
+  /** what was recognised, e.g. "Google Workspace" or "Mail server mail.example.com" */
+  label: string
+  /** how it was found */
+  source: 'domain' | 'mx' | 'autoconfig' | 'guess'
+  /** the provider's own sign-in works for this address */
+  oauth: OAuthProvider | null
+  imap: Omit<ServerConfig, 'user'>
+  smtp: Omit<ServerConfig, 'user'>
+  appendSent: boolean
+  /** 'app': an app password from the provider; 'normal': the mailbox password; 'none': only sign-in works */
+  passwordKind: 'app' | 'normal' | 'none'
+  /** the login name: the full address, or only the part before @ */
+  username: 'email' | 'local'
+  help: string
+}
+
 export interface MailPreset {
   id: string
   label: string

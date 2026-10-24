@@ -152,7 +152,7 @@ async function sendOutbox({ payload }: { payload: { outboxId: string } }): Promi
       raw
     })
   } catch (e) {
-    throw new Error(friendlyMailError(e, !!cfg.oauth))
+    throw new Error(friendlyMailError(e, !!cfg.oauth, cfg.preset))
   } finally {
     transport.close()
   }

@@ -4,6 +4,7 @@ import type { AiKeyStatus, AiUsageSummary, ChatConversation, ChatDetail, ParsedQ
 import type {
   Account,
   AccountInput,
+  DetectedMailSettings,
   CalendarEvent,
   CalendarInfo,
   ComposeInput,
@@ -179,6 +180,8 @@ export interface Api {
   updateAccount(id: string, patch: Partial<AccountInput> & { enabled?: boolean }): Account
   deleteAccount(id: string): void
   testAccount(input: AccountInput & { accountId?: string }): Promise<{ imap: string | null; smtp: string | null; caldav: string | null; calendars?: number }>
+  /** IMAP/SMTP settings for an address (provider, MX records, autoconfig, common host names); null when unknown */
+  getMailSettingsFor(email: string): Promise<DetectedMailSettings | null>
   syncAccount(id: string): void
   syncAllAccounts(): number
 
