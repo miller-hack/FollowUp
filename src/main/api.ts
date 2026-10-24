@@ -23,6 +23,8 @@ import * as followups from './services/mail/followups'
 import * as folders from './services/mail/folders'
 import { draftFollowUp } from './services/mail/followupDraft'
 import * as drafts from './services/mail/drafts'
+import * as crm from './services/crm'
+import { runImport } from './services/crmio'
 import * as store from './services/mail/store'
 import { detectMailSettings } from './services/mail/detect'
 import { friendlyMailError } from './services/mail/transport'
@@ -201,6 +203,28 @@ export const api: Api = {
   dismissFollowUp: followups.dismissFollowUp,
   restoreFollowUp: followups.restoreFollowUp,
 
+  listClients: (filter) => crm.listClients(filter ?? {}),
+  getClientTimeline: (companyId, personId) => crm.clientTimeline(companyId, personId ?? null),
+  listCrmStages: crm.listStages,
+  saveCrmStages: crm.saveStages,
+  listTeam: crm.listTeam,
+  saveTeamMember: crm.saveTeamMember,
+  deleteTeamMember: crm.deleteTeamMember,
+  createCompany: crm.createCompany,
+  updateCompany: crm.updateCompany,
+  deleteCompany: crm.deleteCompany,
+  createPerson: crm.createPerson,
+  updatePerson: crm.updatePerson,
+  deletePerson: crm.deletePerson,
+  logInteraction: crm.logInteraction,
+  updateInteraction: crm.updateInteraction,
+  deleteInteraction: crm.deleteInteraction,
+  listClientSuggestions: () => crm.clientSuggestions(),
+  addClientSuggestion: crm.addSuggestion,
+  ignoreClientSuggestion: crm.ignoreSuggestion,
+  chooseClientImport: files.chooseClientImport,
+  runClientImport: runImport,
+  exportClients: files.exportClients,
   listCalendars: calendar.listCalendars,
   updateCalendar: calendar.updateCalendar,
   listEvents: calendar.listEvents,

@@ -74,6 +74,7 @@
         "react-dom": "19.1.0",
         "react-is": "^19.1.0",
         "react-router-dom": "7.18.4",
+        "read-excel-file": "9.3.10",
         "recharts": "^2.15.4",
         "smtp-server": "3.19.16",
         "tailwindcss": "4.3.3",
@@ -81,6 +82,7 @@
         "typescript": "5.8.3",
         "vite": "7.3.7",
         "vitest": "4.1.11",
+        "write-excel-file": "4.1.1",
         "zod": "^3.25.76",
         "zustand": "5.0.5"
     },

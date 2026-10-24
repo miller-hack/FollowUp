@@ -1,4 +1,5 @@
 import type { Automation, AutomationInput, AutomationRun, TestResult } from './automation'
+import type { ClientFilter, ClientSuggestion, Company, CompanyInput, CrmStage, ImportMapping, ImportPreview, Interaction, InteractionInput, Person, PersonInput, TeamMember, TimelineItem } from './crm'
 import type { Integration, IntegrationInput, OAuthClientStatus, OAuthProvider, OutgoingMessage, UpdateStatus } from './integrations'
 import type { AiKeyStatus, AiUsageSummary, ChatConversation, ChatDetail, ParsedQuickAdd, RewriteStyle, TriageResult } from './ai'
 import type {
@@ -221,6 +222,32 @@ export interface Api {
   dismissFollowUp(threadId: string): void
   restoreFollowUp(threadId: string): void
 
+  // clients (ADR-016)
+  listClients(filter?: ClientFilter): Company[]
+  getClientTimeline(companyId: string, personId?: string | null): TimelineItem[]
+  listCrmStages(): CrmStage[]
+  saveCrmStages(stages: Omit<CrmStage, 'position'>[]): CrmStage[]
+  listTeam(): TeamMember[]
+  saveTeamMember(input: Partial<TeamMember> & { name: string }): TeamMember
+  deleteTeamMember(id: string): void
+  createCompany(input: CompanyInput): Company
+  updateCompany(id: string, patch: Partial<CompanyInput>): void
+  deleteCompany(id: string): void
+  createPerson(input: PersonInput): Person
+  updatePerson(id: string, patch: Partial<PersonInput>): void
+  deletePerson(id: string): void
+  logInteraction(input: InteractionInput): Interaction
+  updateInteraction(id: string, patch: Partial<InteractionInput>): void
+  deleteInteraction(id: string): void
+  listClientSuggestions(): ClientSuggestion[]
+  addClientSuggestion(input: { people: { address: string; name: string }[]; company_id?: string | null; company_name?: string; domain?: string | null }): Company
+  ignoreClientSuggestion(addresses: string[]): void
+  /** pick an .xlsx / .csv file and preview it (null when cancelled) */
+  chooseClientImport(): Promise<ImportPreview | null>
+  runClientImport(token: string, mapping: ImportMapping): { companies: number; people: number; updated: number; skipped: number }
+  /** save the client list as a spreadsheet; returns the file path (null when cancelled) */
+  exportClients(format: 'xlsx' | 'csv'): Promise<string | null>
+
   // calendar
   listCalendars(): CalendarInfo[]
   updateCalendar(id: string, patch: Partial<Pick<CalendarInfo, 'name' | 'color' | 'enabled'>>): void
@@ -298,7 +325,7 @@ export type ApiMethod = keyof Api
 export const READ_ONLY_PREFIXES = ['get', 'list', 'query', 'search', 'test']
 
 /** Mutations that never affect data shown elsewhere, so they don't trigger a refetch. */
-const QUIET_METHODS = new Set(['setViewConfig', 'setUiWidth', 'openAttachment', 'openDataFolder', 'exportJson', 'exportTimeCsv', 'exportIcs', 'cancelSignIn', 'checkForUpdates', 'installUpdate'])
+const QUIET_METHODS = new Set(['setViewConfig', 'setUiWidth', 'exportClients', 'chooseClientImport', 'openAttachment', 'openDataFolder', 'exportJson', 'exportTimeCsv', 'exportIcs', 'cancelSignIn', 'checkForUpdates', 'installUpdate'])
 
 /** Events the main process pushes to the renderer (besides `data-changed`). */
 export type AppEvent =

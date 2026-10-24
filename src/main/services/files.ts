@@ -10,6 +10,8 @@ import { buildExport } from './exporter'
 import { isDangerousFile, markFromInternet } from './mail/store'
 import { backupsToPrune } from './maintenance'
 import { addDays, localDate } from '@shared/dates'
+import type { ImportPreview } from '@shared/crm'
+import { exportClientsCsv, exportClientsXlsx, previewImport } from './crmio'
 
 const MIME: Record<string, string> = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
@@ -164,5 +166,26 @@ export function exportIcs(): string | null {
   if (!file) return null
   const today = localDate()
   writeFileSync(file, calendarIcs(addDays(today, -90), addDays(today, 366), { includeTasks: true }))
+  return file
+}
+// ---------------------------------------------------------------- clients (ADR-016)
+
+export async function chooseClientImport(): Promise<ImportPreview | null> {
+  const win = BrowserWindow.getFocusedWindow()
+  const opts = { title: 'Import clients', properties: ['openFile'] as Array<'openFile'>, filters: [{ name: 'Excel or CSV', extensions: ['xlsx', 'csv'] }] }
+  const [file] = (win ? dialog.showOpenDialogSync(win, opts) : dialog.showOpenDialogSync(opts)) ?? []
+  return file ? previewImport(file) : null
+}
+
+export async function exportClients(format: 'xlsx' | 'csv'): Promise<string | null> {
+  const win = BrowserWindow.getFocusedWindow()
+  const opts = {
+    title: 'Export clients',
+    defaultPath: `followup-clients-${localDate()}.${format}`,
+    filters: [format === 'xlsx' ? { name: 'Excel', extensions: ['xlsx'] } : { name: 'CSV', extensions: ['csv'] }]
+  }
+  const file = win ? dialog.showSaveDialogSync(win, opts) : dialog.showSaveDialogSync(opts)
+  if (!file) return null
+  writeFileSync(file, format === 'xlsx' ? await exportClientsXlsx() : exportClientsCsv())
   return file
 }

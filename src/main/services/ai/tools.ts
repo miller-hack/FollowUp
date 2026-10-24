@@ -9,6 +9,7 @@ import { listGoals } from '../planning'
 import { createEvent, listCalendars, listEvents } from '../calendar'
 import { createReminder } from '../notify'
 import { getThread, listThreads } from '../mail/store'
+import { clientTimeline, listClients, listStages, listTeam, logInteraction } from '../crm'
 import type { ToolSpec } from './providers'
 
 /** UI-side effects requested by tools (e.g. open a compose window). */
@@ -262,6 +263,31 @@ export const TOOLS: AssistantTool[] = [
     () => 'Look at emails that need follow-up'
   ),
 
+  tool(
+    'find_client',
+    'Search the client list (companies and their people: designation, phone, email, stage, our owner, next action) and get the recent history of the best match.',
+    { query: str('Company, person, email, designation or phone to look for') },
+    false,
+    (i) => {
+      const stages = new Map(listStages().map((s) => [s.id, s.name]))
+      const team = new Map(listTeam().map((m) => [m.id, m.name]))
+      const found = listClients({ search: i.query as string }).slice(0, 5)
+      return found.map((c, n) => ({
+        company_id: c.id,
+        company: c.name,
+        stage: c.stage_id ? stages.get(c.stage_id) : null,
+        our_owner: c.owner_id ? team.get(c.owner_id) : null,
+        next_action: c.next_action || null,
+        next_action_due: c.next_action_due,
+        people: c.people.map((p) => ({ person_id: p.id, name: p.name, designation: p.designation, phone: p.phone, email: p.email, responsible_on_their_side: p.action_owner, last_contact: p.last_contact })),
+        recent: n === 0
+          ? clientTimeline(c.id, null, 8).map((t) => (t.type === 'email' ? { at: t.at, email: t.subject, from_us: t.outbound } : { at: t.at, [t.interaction.kind]: t.interaction.title || t.interaction.summary.slice(0, 120) }))
+          : undefined
+      }))
+    },
+    (i) => `Look up “${i.query}” in your clients`
+  ),
+
   // ---------------- write (approval)
   tool(
     'create_task',
@@ -378,6 +404,34 @@ export const TOOLS: AssistantTool[] = [
     },
     (i) => `Remind you “${i.title}” at ${String(i.remind_at).replace('T', ' ')}`
   ),
+  tool(
+    'log_client_interaction',
+    'Record a call, chat, meeting, event or note with a client company (use find_client first for the ids).',
+    {
+      company_id: str('Company id from find_client'),
+      kind: oneOf(['call', 'chat', 'meeting', 'event', 'note'] as const, 'What kind of contact'),
+      at: str('When: YYYY-MM-DD or YYYY-MM-DDTHH:mm local time'),
+      title: opt(str('Short title')),
+      summary: str('What was discussed or agreed'),
+      next_steps: opt(str('Next steps')),
+      person_ids: opt({ json: { type: 'array', items: { type: 'string' }, description: 'Ids of the people at the client who took part' }, zod: z.array(z.string()), optional: false }),
+      mode: opt(oneOf(['in_person', 'office', 'virtual'] as const, 'For meetings: where'))
+    },
+    true,
+    (i) => {
+      const r = logInteraction({
+        company_id: i.company_id as string, kind: i.kind as 'call', channel: '', mode: (i.mode as 'virtual' | undefined) ?? null, title: (i.title as string) ?? '',
+        at: i.at as string, duration_min: null, place: '', summary: i.summary as string, next_steps: (i.next_steps as string) ?? '',
+        person_ids: (i.person_ids as string[]) ?? [], member_ids: []
+      })
+      return { interaction_id: r.id }
+    },
+    (i) => {
+      const c = get<{ name: string }>('SELECT name FROM companies WHERE id = ?', i.company_id)
+      return `Log a ${i.kind} with ${c?.name ?? 'a client'} on ${String(i.at).replace('T', ' ')}: ${String(i.summary).slice(0, 80)}`
+    }
+  ),
+
   // ---------------- UI (the user reviews before anything is sent)
   tool(
     'draft_email',
