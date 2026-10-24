@@ -4,17 +4,15 @@ import { SMTPServer } from 'smtp-server'
 import { ImapFlow } from 'imapflow'
 import type { MailAccountConfig } from '@shared/mail'
 import { addDays, localDate } from '@shared/dates'
-import { all, closeDb, get, openDb } from '../src/main/db'
+import { closeDb, get, openDb } from '../src/main/db'
 import * as h from '../src/main/services/hierarchy'
 import * as t from '../src/main/services/tasks'
 import * as auto from '../src/main/services/automation'
 import * as accounts from '../src/main/services/mail/accounts'
 import * as mail from '../src/main/services/mail/index'
 import * as send from '../src/main/services/mail/send'
-import * as seq from '../src/main/services/mail/sequences'
 import * as store from '../src/main/services/mail/store'
 import * as cal from '../src/main/services/calendar'
-import { updateSettings } from '../src/main/services/meta'
 import { processJobs } from '../src/main/services/jobs'
 
 const require = createRequire(import.meta.url)
@@ -209,83 +207,8 @@ describe('sending', () => {
   })
 })
 
-describe('follow-up sequences', () => {
-  const allDay = { days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }
-
-  it('sends steps as replies until the contact answers', async () => {
-    const { acc } = setup()
-    await accounts.syncMailAccount(acc.id)
-    const thread = store.listThreads({ folder: 'inbox' }).find((x) => x.subject === 'Proposal')!
-    const s = seq.createSequence({
-      name: 'Nudge',
-      window: allDay,
-      daily_cap: 10,
-      steps: [
-        { wait_days: 2, body: 'Hi {{first_name}}, just checking in on “{{subject}}”.' },
-        { wait_days: 3, body: 'Last nudge!' }
-      ]
-    })
-    const e = seq.enrollThread(thread.id, s.id)
-    expect(e).toMatchObject({ status: 'active', to: 'ana@client.com', total_steps: 2 })
-    expect(store.listThreads({ folder: 'followups' }).map((x) => x.id)).toEqual([thread.id])
-
-    expect(seq.sequenceTick(new Date())).toBe(0) // not due yet
-    delivered.length = 0
-    const due = new Date(Date.now() + 2.1 * 86_400_000)
-    expect(seq.sequenceTick(due)).toBe(1)
-    await processJobs(due)
-    expect(delivered).toHaveLength(1)
-    expect(delivered[0]).toContain('Hi Ana, just checking in on')
-    expect(delivered[0]).toContain('Subject: Re: Proposal')
-    expect(seq.listEnrollments({ threadId: thread.id })[0]).toMatchObject({ status: 'active', current_step: 1 })
-
-    await appendToInbox(rfc({ from: 'ana@client.com', subject: 'Re: Proposal', id: 'p3@client.com', inReplyTo: 'p1@client.com', body: 'Sorry, busy week!' }))
-    await accounts.syncMailAccount(acc.id)
-    expect(seq.listEnrollments({ threadId: thread.id })[0]).toMatchObject({ status: 'replied', stopped_reason: 'ana@client.com replied' })
-  })
-
-  it('respects the send window and the daily cap, and stops on bounces and manual replies', async () => {
-    const { acc } = setup()
-    await accounts.syncMailAccount(acc.id)
-    const [a, b] = store.listThreads({ folder: 'inbox' })
-    const s = seq.createSequence({ name: 'Weekdays', window: { days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00' }, daily_cap: 1, steps: [{ wait_days: 1, body: 'Ping' }] })
-    const ea = seq.enrollThread(a.id, s.id)
-    const eb = seq.enrollThread(b.id, s.id)
-
-    // Saturday 10:00 → moved to Monday 09:00
-    const sat = new Date(2026, 9, 17, 10, 0)
-    expect(seq.runSequenceStep(ea.id, sat)).toBe('outside window')
-    const next = new Date(get<{ next_run_at: string }>('SELECT next_run_at FROM sequence_enrollments WHERE id = ?', ea.id)!.next_run_at)
-    expect([next.getDay(), next.getHours()]).toEqual([1, 9])
-
-    const mon = new Date(2026, 9, 19, 10, 0)
-    expect(seq.runSequenceStep(ea.id, mon)).toBe('sent')
-    expect(seq.runSequenceStep(eb.id, mon)).toBe('daily cap reached')
-
-    seq.onInboundReply(b.id, 'mailer-daemon@example.com', 'Undeliverable: Big sale')
-    expect(seq.listEnrollments({ threadId: b.id })[0].status).toBe('bounced')
-
-    const ec = seq.enrollThread(b.id, s.id)
-    send.queueEmail({ account_id: acc.id, to: 'news@shop.com', subject: 'Re: Big sale', body: 'Thanks', reply_to: store.getThread(b.id)!.messages[0].id })
-    expect(seq.listEnrollments({ threadId: b.id }).find((x) => x.id === ec.id)).toMatchObject({ status: 'stopped', stopped_reason: 'You replied' })
-  })
-
-  it('skips follow-ups missed while offline when configured', async () => {
-    const { acc } = setup()
-    await accounts.syncMailAccount(acc.id)
-    const [thread] = store.listThreads({ folder: 'inbox' })
-    const s = seq.createSequence({ name: 'S', window: allDay, daily_cap: 10, steps: [{ wait_days: 1, body: 'A' }, { wait_days: 1, body: 'B' }] })
-    const e = seq.enrollThread(thread.id, s.id)
-    updateSettings({ followups: { missedPolicy: 'skip' } })
-    const scheduled = new Date(Date.now() - 3 * 86_400_000).toISOString()
-    expect(seq.runSequenceStep(e.id, new Date(), scheduled)).toBe('skipped (missed while offline)')
-    expect(all('SELECT id FROM outbox')).toHaveLength(0)
-    expect(seq.listEnrollments({ threadId: thread.id })[0].current_step).toBe(1)
-  })
-})
-
 describe('email automations', () => {
-  it('replies automatically and starts sequences when no reply arrives', async () => {
+  it('fires once when a sent email gets no reply', async () => {
     const { acc } = setup()
     await accounts.syncMailAccount(acc.id)
     const thread = store.listThreads({ folder: 'inbox' }).find((x) => x.subject === 'Proposal')!
@@ -293,21 +216,19 @@ describe('email automations', () => {
     send.queueEmail({ account_id: acc.id, to: 'ana@client.com', subject: 'Re: Proposal', body: 'Here it is', reply_to: parent.id })
     await processJobs()
 
-    const s = seq.createSequence({ name: 'Chase', window: { days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }, daily_cap: 5, steps: [{ wait_days: 2, body: 'Any thoughts?' }] })
     auto.createAutomation({
       name: 'Chase silence',
       enabled: true,
       scope: null,
       trigger: { type: 'email_no_reply', days: 3 },
       conditions: [],
-      actions: [{ type: 'start_sequence', sequence_id: s.id }, { type: 'notify', title: 'No reply from {{email.to}}' }]
+      actions: [{ type: 'notify', title: 'No reply from {{email.to}}' }]
     })
     expect(auto.automationTick(new Date())).toBe(0)
     const later = new Date(Date.now() + 3.5 * 86_400_000)
     expect(auto.automationTick(later)).toBe(1)
     expect(auto.automationTick(later)).toBe(0)
     await processJobs(later)
-    expect(seq.listEnrollments({ threadId: thread.id })[0]).toMatchObject({ status: 'active', sequence_name: 'Chase' })
     expect(auto.listAutomationRuns()[0].detail.join(' ')).toContain('No reply from ana@client.com')
   })
 

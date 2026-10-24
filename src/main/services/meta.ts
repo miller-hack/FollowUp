@@ -80,7 +80,16 @@ export const DEFAULT_SETTINGS: Settings = {
   closeAsked: false,
   startAtLogin: false,
   mail: { syncIntervalMin: 2, loadRemoteImages: false },
-  followups: { missedPolicy: 'send' },
+  followups: {
+    companyDomains: [],
+    includeAccountDomains: true,
+    workingDays: [1, 2, 3, 4, 5],
+    replyAfterHours: 24,
+    nudgeAfterHours: 30,
+    lookbackDays: 14,
+    dailyReminder: true
+  },
+  ui: { widths: {} },
   ai: {
     provider: 'anthropic',
     anthropicModel: 'claude-opus-5-5',
@@ -94,7 +103,7 @@ export const DEFAULT_SETTINGS: Settings = {
   oauth: { googleClientId: '', microsoftClientId: '' }
 }
 
-const NESTED = ['notifications', 'mail', 'followups', 'ai', 'updates', 'oauth'] as const
+const NESTED = ['notifications', 'mail', 'followups', 'ai', 'updates', 'oauth', 'ui'] as const
 
 function getKey<T>(key: string): T | null {
   const row = get<{ value: string }>('SELECT value FROM settings WHERE key = ?', key)

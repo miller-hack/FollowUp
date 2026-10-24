@@ -3,11 +3,12 @@ import { all, get, now, run, tx, uuid } from '../../db'
 import { emit } from '../events'
 import { enqueue, registerJobHandler } from '../jobs'
 import { decryptSecret, encryptSecret } from './secrets'
-import { parseRaw, removeAccountFiles, storeMessage } from './store'
-import { friendlyMailError, isAuthError, smtpTransport, withImap, type ImapSession, type MailAuth } from './transport'
+import { removeAccountFiles } from './store'
+import { setAccountImap, syncFolders } from './folders'
+import { friendlyMailError, isAuthError, smtpTransport, withImap, type MailAuth } from './transport'
 import type { OAuthProvider } from '@shared/integrations'
 import { accessToken, authorize, forgetAccessToken, oauthSecret, parseOAuthSecret, primeAccessToken } from '../oauth'
-import { onInboundReply } from './sequences'
+import { recomputeFollowUps } from './followups'
 
 interface Row {
   id: string
@@ -207,88 +208,41 @@ export async function testMailConnection(input: AccountInput & { accountId?: str
 
 // ---------------------------------------------------------------- mail sync
 
-const MAX_INITIAL = 500
-
-async function findSentFolder(s: ImapSession): Promise<string | null> {
-  const folders = await s.folders()
-  return folders.find((f) => f.specialUse === '\\Sent')?.path ?? folders.find((f) => /^(sent|sent items|sent mail|\[gmail\]\/sent mail)$/i.test(f.path))?.path ?? null
-}
-
 /**
- * Pull new messages from INBOX and Sent. The first sync imports `syncDays` of history
- * silently; later syncs emit `mail.received` for new inbound mail (automations,
- * follow-up reply detection).
+ * Pull new mail from every server folder (ADR-014). The first sync imports `syncDays` of history
+ * silently; later syncs emit `mail.received` for new inbound mail in the inbox (automations).
  */
 export async function syncMailAccount(accountId: string): Promise<{ added: number }> {
   const acc = getAccountFull(accountId)
   if (!acc || acc.kind !== 'mail') throw new Error('Mail account not found')
   const cfg = acc.config as MailAccountConfig
-  const state: SyncState = { ...acc.state }
-  let added = 0
-  // a message that can't be parsed or stored is skipped, never retried forever (ADR-003)
-  let skipped = 0
+  let touched = new Set<string>()
   try {
-    await withImap(cfg.imap, await authFor(acc), async (s) => {
-      const sent = await findSentFolder(s)
-      for (const [folder, inInbox] of [['INBOX', true], [sent, false]] as [string | null, boolean][]) {
-        if (!folder) continue
-        const box = await s.open(folder)
-        const prev = state[folder]
-        const initial = !prev || prev.uidValidity !== box.uidValidity
-        const fs: FolderState = initial ? { uidValidity: box.uidValidity, lastUid: 0 } : { ...prev }
-        let range: string | null = null
-        if (fs.lastUid === 0) {
-          const since = new Date(Date.now() - cfg.syncDays * 86_400_000)
-          const uids = (await s.searchSince(since)).sort((a, b) => a - b).slice(-MAX_INITIAL)
-          if (uids.length) range = uids.join(',')
-        } else if (box.exists > 0) {
-          range = `${fs.lastUid + 1}:*`
-        }
-        if (range) {
-          for await (const msg of s.fetch(range)) {
-            if (msg.uid <= fs.lastUid) continue // "n:*" always returns the newest message
-            fs.lastUid = Math.max(fs.lastUid, msg.uid)
-            try {
-              const parsed = await parseRaw(msg.source)
-              const r = storeMessage(accountId, parsed, { accountEmail: acc.email, folder, uid: msg.uid, seen: msg.flags.has('\\Seen'), inInbox })
-              if (!r.isNew) continue
-              added++
-              if (!initial && !r.isOutbound) {
-                tx(() => {
-                  onInboundReply(r.threadId, parsed.from.address, parsed.subject)
-                  emit({ type: 'mail.received', threadId: r.threadId, messageId: r.messageRowId })
-                })
-              }
-            } catch (e) {
-              skipped++
-              console.warn(`Skipped message UID ${msg.uid} in ${folder}`, e)
-            }
-          }
-        }
-        // refresh read/unread for recent inbox mail (read on another device)
-        if (inInbox && fs.lastUid > 0) {
-          const from = Math.max(1, fs.lastUid - 300)
-          for await (const msg of s.fetch(`${from}:${fs.lastUid}`, false)) {
-            run('UPDATE mail_messages SET is_read = ? WHERE account_id = ? AND folder = ? AND uid = ?', msg.flags.has('\\Seen'), accountId, folder, msg.uid)
-          }
-        }
-        state[folder] = fs
-        run('UPDATE accounts SET sync_state = ? WHERE id = ?', state, accountId)
-      }
-    })
+    const r = await withImap(cfg.imap, await authFor(acc), (s) => syncFolders(s, { id: accountId, email: acc.email, config: cfg, legacyState: acc.state }))
+    touched = r.touched
+    for (const [threadId, messageId] of r.received) emit({ type: 'mail.received', threadId, messageId })
     run(
       'UPDATE accounts SET last_sync_at = ?, last_error = ? WHERE id = ?',
       now(),
-      skipped ? `Skipped ${skipped} message${skipped === 1 ? '' : 's'} that could not be read (still on the server).` : null,
+      // a message that can't be parsed or stored is skipped, never retried forever (ADR-003)
+      r.skipped ? `Skipped ${r.skipped} message${r.skipped === 1 ? '' : 's'} that could not be read (still on the server).` : null,
       accountId
     )
+    return { added: r.added }
   } catch (e) {
     onAuthError(acc, e)
     run('UPDATE accounts SET last_error = ? WHERE id = ?', friendlyMailError(e, !!cfg.oauth, cfg.preset), accountId)
     throw e
+  } finally {
+    if (touched.size) recomputeFollowUps([...touched])
   }
-  return { added }
 }
+
+setAccountImap(async (accountId, fn) => {
+  const acc = getAccountFull(accountId)
+  if (!acc || acc.kind !== 'mail') throw new Error('Mail account not found')
+  return withImap((acc.config as MailAccountConfig).imap, await authFor(acc), fn)
+})
 
 /** Push read/unread changes made in the app to the server. */
 registerJobHandler<{ accountId: string; folder: string; uids: number[]; seen: boolean }>(
@@ -306,7 +260,8 @@ registerJobHandler<{ accountId: string; folder: string; uids: number[]; seen: bo
 export function markThreadRead(threadId: string, read: boolean): void {
   tx(() => {
     const msgs = all<{ account_id: string; folder: string | null; uid: number | null }>(
-      'SELECT account_id, folder, uid FROM mail_messages WHERE thread_id = ? AND is_outbound = 0 AND is_read = ?',
+      `SELECT l.account_id, l.folder, l.uid FROM mail_messages m JOIN mail_locations l ON l.message_id = m.id
+       WHERE m.thread_id = ? AND m.is_outbound = 0 AND m.is_read = ? AND l.uid > 0`,
       threadId,
       !read
     )

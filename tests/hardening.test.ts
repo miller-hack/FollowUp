@@ -324,39 +324,12 @@ describe('email automation loop protection', () => {
 
 // ---------------------------------------------------------------- M3 / M4: follow-ups
 
-describe('follow-up sequences', () => {
+describe('email addresses', () => {
   it('parses Name <address> recipients', async () => {
-    const { parseAddress } = await import('../src/main/services/mail/sequences')
+    const { parseAddress } = await import('../src/main/services/mail/templates')
     expect(parseAddress('Ana Lima <Ana@Client.com>')).toEqual({ name: 'Ana Lima', address: 'ana@client.com' })
     expect(parseAddress('"Lima, Ana" <ana@client.com>')).toEqual({ name: 'Lima, Ana', address: 'ana@client.com' })
     expect(parseAddress(' bob@x.com ')).toEqual({ name: '', address: 'bob@x.com' })
-  })
-
-  it('marks a follow-up failed when its step cannot be sent, instead of leaving it active forever', async () => {
-    const store = await import('../src/main/services/mail/store')
-    const accounts = await import('../src/main/services/mail/accounts')
-    const seq = await import('../src/main/services/mail/sequences')
-    const { processJobs } = await import('../src/main/services/jobs')
-    const { run } = await import('../src/main/db')
-    const acc = accounts.createAccount({
-      kind: 'mail', name: 'Me', email: 'me@example.com', password: 'pw',
-      config: { imap: { host: 'h', port: 993, secure: true, user: 'me' }, smtp: { host: 'h', port: 465, secure: true, user: 'me' }, syncDays: 30, appendSent: false }
-    })
-    run("DELETE FROM jobs WHERE type = 'account_sync'")
-    const r = store.storeMessage(
-      acc.id,
-      { messageId: '<s1@x>', inReplyTo: null, references: [], from: { name: 'Me', address: 'me@example.com' }, to: [{ name: '', address: 'ana@client.com' }], cc: [], subject: 'Proposal', date: new Date().toISOString(), text: 'hi', html: null, auto: false, attachments: [] },
-      { accountEmail: 'me@example.com', folder: null, uid: null, seen: true, inInbox: false }
-    )
-    const s = seq.createSequence({ name: 'Nudge', daily_cap: 50, window: { days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }, steps: [{ wait_days: 1, body: 'Any news?' }] })
-    const e = seq.enrollThread(r.threadId, s.id, 'not an address')
-    run('UPDATE sequence_enrollments SET next_run_at = ? WHERE id = ?', new Date(Date.now() - 60_000).toISOString(), e.id)
-    seq.sequenceTick()
-    // three attempts with backoff
-    for (let i = 0; i < 3; i++) await processJobs(new Date(Date.now() + i * 3600_000))
-    const after = seq.listEnrollments({ threadId: r.threadId })[0]
-    expect(after.status).toBe('failed')
-    expect(after.stopped_reason).toMatch(/not a valid email address/)
   })
 })
 

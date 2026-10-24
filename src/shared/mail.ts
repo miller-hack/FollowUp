@@ -173,17 +173,60 @@ export interface MailMessage {
   body_html: string | null
   is_read: boolean
   is_outbound: boolean
+  /** a draft (not sent yet): Edit or Discard */
+  is_draft: boolean
   attachments: MailAttachment[]
 }
 
-export interface EnrollmentSummary {
-  id: string
-  sequence_id: string
-  sequence_name: string
-  status: EnrollmentStatus
-  current_step: number
-  total_steps: number
-  next_run_at: string | null
+export type FollowUpKind = 'reply' | 'nudge'
+
+/** Why a conversation is in Follow-up (ADR-015). */
+export interface FollowUpInfo {
+  /** reply: they wrote and nobody on our side answered; nudge: we wrote and they haven't answered */
+  kind: FollowUpKind
+  /** when the clock started (the latest real message) */
+  since: string
+  /** when it became (or becomes) due, counting working days only */
+  due_at: string
+  /** due now (not snoozed or dismissed) */
+  due: boolean
+  snoozed_until: string | null
+  dismissed: boolean
+}
+
+export interface FollowUpCounts {
+  reply: number
+  nudge: number
+}
+
+export interface FollowUpSettings {
+  /** email domains that count as "us" besides the connected mailboxes, e.g. ["acme.com"] */
+  companyDomains: string[]
+  /** also treat the connected mailboxes' own domains as ours (except public ones like gmail.com) */
+  includeAccountDomains: boolean
+  /** 0 = Sunday … 6 = Saturday; only these days count towards the waiting time */
+  workingDays: number[]
+  /** working hours without an answer from us before an email needs a reply */
+  replyAfterHours: number
+  /** working hours without an answer from them before our email needs a nudge */
+  nudgeAfterHours: number
+  /** conversations older than this are never brought up */
+  lookbackDays: number
+  /** one notification a day (at the digest time) when something needs follow-up */
+  dailyReminder: boolean
+}
+
+/** Draft for a follow-up email, ready to edit and send. */
+export interface FollowUpDraft {
+  account_id: string
+  to: string
+  cc: string
+  subject: string
+  body: string
+  reply_to: string
+  /** 'ai' when the AI wrote it; 'template' when AI isn't set up or failed (then `ai_error` says why) */
+  source: 'ai' | 'template'
+  ai_error?: string
 }
 
 export interface MailThread {
@@ -198,7 +241,9 @@ export interface MailThread {
   has_attachments: boolean
   done: boolean
   task_ids: string[]
-  enrollment: EnrollmentSummary | null
+  followup: FollowUpInfo | null
+  /** the client company of the other side, when it is in Clients */
+  company: { id: string; name: string; stage: string | null; color: string | null } | null
   /** set when AI triage has classified the thread */
   ai: { category: EmailCategory; priority: 1 | 2 | 3; summary: string } | null
 }
@@ -207,7 +252,23 @@ export interface ThreadDetail extends MailThread {
   messages: MailMessage[]
 }
 
-export type MailFolder = 'inbox' | 'followups' | 'sent' | 'done' | 'all'
+/**
+ * What a thread list shows: FollowUp's own views ('inbox' = Inbox minus Done, 'followups', 'done', 'all')
+ * or a server folder by role ('sent', 'drafts', 'spam', 'trash', 'archive') or path ('folder:<path>').
+ */
+export type MailFolder = 'inbox' | 'followups' | 'sent' | 'done' | 'all' | 'drafts' | 'spam' | 'trash' | 'archive' | `folder:${string}`
+
+export type FolderRole = 'inbox' | 'sent' | 'drafts' | 'spam' | 'trash' | 'archive' | 'all'
+
+export interface MailFolderInfo {
+  account_id: string
+  path: string
+  name: string
+  role: FolderRole | null
+  /** nesting level for display */
+  depth: number
+  unread: number
+}
 
 export interface ThreadQuery {
   folder: MailFolder
@@ -216,6 +277,8 @@ export interface ThreadQuery {
   unread_only?: boolean
   /** only threads AI triage put in this category */
   ai_category?: EmailCategory | null
+  /** Follow-up view: which kind (both when omitted) */
+  followup_kind?: FollowUpKind | null
   limit?: number
 }
 
@@ -228,6 +291,8 @@ export interface ComposeInput {
   body: string
   /** row id of the message being replied to / forwarded */
   reply_to?: string | null
+  /** the saved draft this email was written from (removed once it is sent) */
+  draft_id?: string | null
 }
 
 export interface OutboxItem {
@@ -237,7 +302,7 @@ export interface OutboxItem {
   subject: string
   status: 'queued' | 'sent' | 'failed'
   error: string | null
-  source: 'manual' | 'sequence' | 'automation'
+  source: 'manual' | 'sequence' | 'automation' | 'followup'
   created_at: string
   sent_at: string | null
 }
@@ -249,46 +314,8 @@ export interface EmailTemplate {
   body: string
 }
 
-// ---------------------------------------------------------------- follow-up sequences
-
-export interface SendWindow {
-  /** 0 = Sunday … 6 = Saturday */
-  days: number[]
-  start: string
-  end: string
-}
-
-export interface SequenceStep {
-  id: string
-  /** days to wait after the previous email (or enrollment) */
-  wait_days: number
-  /** sent as a reply in the same thread; supports {{first_name}}, {{name}}, {{subject}} */
-  body: string
-}
-
-export interface Sequence {
-  id: string
-  name: string
-  window: SendWindow
-  daily_cap: number
-  steps: SequenceStep[]
-  active_count: number
-}
-
-export type SequenceInput = Pick<Sequence, 'name' | 'window' | 'daily_cap'> & { steps: Omit<SequenceStep, 'id'>[] }
-
-export type EnrollmentStatus = 'active' | 'replied' | 'completed' | 'stopped' | 'bounced' | 'failed'
-
-export interface Enrollment extends EnrollmentSummary {
-  thread_id: string
-  thread_subject: string
-  to: string
-  enrolled_at: string
-  last_sent_at: string | null
-  stopped_reason: string | null
-}
-
-export const SEQUENCE_VARS = ['{{first_name}}', '{{name}}', '{{subject}}']
+/** Variables in email templates. */
+export const TEMPLATE_VARS = ['{{first_name}}', '{{name}}', '{{subject}}']
 
 // ---------------------------------------------------------------- calendar
 

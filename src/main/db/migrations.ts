@@ -285,6 +285,97 @@ const MIGRATIONS: string[] = [
   ALTER TABLE mail_attachments ADD COLUMN inline INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE mail_attachments ADD COLUMN content_id TEXT;
   CREATE INDEX IF NOT EXISTS idx_mail_attachments_message ON mail_attachments(message_id, content_id);
+  `,
+  // ---- 1.1: Follow-up in the Inbox replaces sequences (ADR-015); every server folder (ADR-014)
+  `
+  ALTER TABLE mail_threads ADD COLUMN followup_kind TEXT;
+  ALTER TABLE mail_threads ADD COLUMN followup_anchor TEXT;
+  ALTER TABLE mail_threads ADD COLUMN followup_since TEXT;
+  ALTER TABLE mail_threads ADD COLUMN followup_due_at TEXT;
+  ALTER TABLE mail_threads ADD COLUMN followup_snoozed_until TEXT;
+  ALTER TABLE mail_threads ADD COLUMN followup_dismissed_for TEXT;
+  CREATE INDEX IF NOT EXISTS idx_threads_followup ON mail_threads(followup_kind, followup_due_at);
+
+  -- sequences are retired: running ones stop, rules that started them are switched off
+  UPDATE sequence_enrollments SET status = 'stopped', next_run_at = NULL,
+    stopped_reason = 'Automatic sequences were replaced by Follow-up in FollowUp 1.1'
+    WHERE status = 'active';
+  UPDATE automations SET enabled = 0 WHERE actions LIKE '%"start_sequence"%';
+
+  -- the server's folders, with their role (inbox, sent, drafts, spam, trash, archive, all) and sync position
+  CREATE TABLE mail_folders (${base},
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    path TEXT NOT NULL, name TEXT NOT NULL, delimiter TEXT NOT NULL DEFAULT '/', role TEXT,
+    uid_validity TEXT, last_uid INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (account_id, path));
+
+  -- where each message is on the server (a message can be in several folders, e.g. Gmail labels)
+  CREATE TABLE mail_locations (
+    message_id TEXT NOT NULL REFERENCES mail_messages(id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    folder TEXT NOT NULL, uid INTEGER NOT NULL,
+    PRIMARY KEY (message_id, folder));
+  CREATE INDEX idx_locations_folder ON mail_locations(account_id, folder, uid);
+  INSERT OR IGNORE INTO mail_locations (message_id, account_id, folder, uid)
+    SELECT id, account_id, folder, uid FROM mail_messages WHERE folder IS NOT NULL AND uid IS NOT NULL;
+
+  -- messages written in FollowUp and kept as drafts (on the server when the account has a Drafts folder)
+  ALTER TABLE mail_messages ADD COLUMN is_draft INTEGER NOT NULL DEFAULT 0;
+  `,
+  // ---- 1.1: Clients (ADR-016)
+  `
+  CREATE TABLE team_members (${base}, name TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', position INTEGER NOT NULL DEFAULT 0);
+
+  CREATE TABLE crm_stages (${base},
+    name TEXT NOT NULL, color TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'open', position INTEGER NOT NULL DEFAULT 0);
+  INSERT INTO crm_stages (id, name, color, kind, position) VALUES
+    ('stage-lead', 'Lead', '#94a3b8', 'open', 1),
+    ('stage-contacted', 'Contacted', '#3b82f6', 'open', 2),
+    ('stage-meeting', 'Meeting held', '#8b5cf6', 'open', 3),
+    ('stage-proposal', 'Proposal sent', '#f59e0b', 'open', 4),
+    ('stage-negotiation', 'Negotiation', '#f97316', 'open', 5),
+    ('stage-won', 'Won', '#22c55e', 'won', 6),
+    ('stage-lost', 'Lost', '#ef4444', 'lost', 7),
+    ('stage-hold', 'On hold', '#64748b', 'hold', 8);
+
+  CREATE TABLE companies (${base},
+    name TEXT NOT NULL, domains TEXT NOT NULL DEFAULT '[]', type TEXT NOT NULL DEFAULT 'client',
+    stage_id TEXT REFERENCES crm_stages(id) ON DELETE SET NULL,
+    owner_id TEXT REFERENCES team_members(id) ON DELETE SET NULL,
+    next_action TEXT NOT NULL DEFAULT '', next_action_due TEXT, notes TEXT NOT NULL DEFAULT '',
+    position INTEGER NOT NULL DEFAULT 0);
+
+  CREATE TABLE people (${base},
+    company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    name TEXT NOT NULL, designation TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '', other_emails TEXT NOT NULL DEFAULT '[]',
+    action_owner INTEGER NOT NULL DEFAULT 0,
+    owner_id TEXT REFERENCES team_members(id) ON DELETE SET NULL,
+    next_action TEXT NOT NULL DEFAULT '', next_action_due TEXT, notes TEXT NOT NULL DEFAULT '',
+    position INTEGER NOT NULL DEFAULT 0);
+  CREATE INDEX idx_people_company ON people(company_id, position);
+  CREATE INDEX idx_people_email ON people(email);
+
+  -- calls, chats, meetings, events and notes; emails come from the mail store
+  CREATE TABLE interactions (${base},
+    company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL, channel TEXT NOT NULL DEFAULT '', mode TEXT,
+    title TEXT NOT NULL DEFAULT '', at TEXT NOT NULL, duration_min INTEGER,
+    place TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '', next_steps TEXT NOT NULL DEFAULT '',
+    task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL);
+  CREATE INDEX idx_interactions_company ON interactions(company_id, at);
+  CREATE TABLE interaction_people (
+    interaction_id TEXT NOT NULL REFERENCES interactions(id) ON DELETE CASCADE,
+    person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    PRIMARY KEY (interaction_id, person_id));
+  CREATE INDEX idx_interaction_people_person ON interaction_people(person_id);
+  CREATE TABLE interaction_members (
+    interaction_id TEXT NOT NULL REFERENCES interactions(id) ON DELETE CASCADE,
+    member_id TEXT NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+    PRIMARY KEY (interaction_id, member_id));
+
+  -- addresses the user chose not to add from the "suggested from email" list
+  CREATE TABLE crm_ignored (address TEXT PRIMARY KEY, created_at TEXT NOT NULL);
   `
 ]
 

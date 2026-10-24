@@ -1,11 +1,11 @@
 import MailComposer from 'nodemailer/lib/mail-composer'
 import type { ComposeInput, MailAccountConfig, OutboxItem } from '@shared/mail'
-import { all, get, now, run, tx, uuid } from '../../db'
+import { all, get, now, run, uuid } from '../../db'
 import { enqueue, registerJobHandler } from '../jobs'
 import { authFor, getAccountFull } from './accounts'
 import { getMessageRow, parseRaw, storeMessage } from './store'
 import { friendlyMailError, smtpTransport, withImap } from './transport'
-import { stopEnrollmentsForThread } from './sequences'
+import { recomputeFollowUps } from './followups'
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -45,8 +45,7 @@ export function parseRecipients(text: string): string[] {
 
 export interface QueueOptions {
   source?: OutboxItem['source']
-  enrollmentId?: string | null
-  /** for sequence/automation replies: thread to reply into */
+  /** for automation replies: thread to reply into */
   threadId?: string | null
 }
 
@@ -73,12 +72,10 @@ export function queueEmail(input: ComposeInput, opts: QueueOptions = {}): Outbox
     message_id: `<${uuid()}@${domain}>`
   }
   run(
-    `INSERT INTO outbox (id, account_id, to_addrs, cc_addrs, subject, body, in_reply_to, refs, thread_id, source, enrollment_id, message_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    item.id, acc.id, to.join(', '), cc.join(', '), input.subject, input.body, inReplyTo, refs, threadId, opts.source ?? 'manual', opts.enrollmentId ?? null, item.message_id
+    `INSERT INTO outbox (id, account_id, to_addrs, cc_addrs, subject, body, in_reply_to, refs, thread_id, source, message_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    item.id, acc.id, to.join(', '), cc.join(', '), input.subject, input.body, inReplyTo, refs, threadId, opts.source ?? 'manual', item.message_id
   )
-  // replying yourself ends an automatic follow-up
-  if ((opts.source ?? 'manual') === 'manual' && threadId) stopEnrollmentsForThread(threadId, 'stopped', 'You replied')
   enqueue('mail_send', { outboxId: item.id }, { maxAttempts: 5 })
   return getOutboxItem(item.id)!
 }
@@ -119,7 +116,6 @@ interface OutboxRow {
   in_reply_to: string | null
   refs: string
   status: string
-  enrollment_id: string | null
   message_id: string
 }
 
@@ -158,10 +154,7 @@ async function sendOutbox({ payload }: { payload: { outboxId: string } }): Promi
   }
 
   // The server accepted it: record that first, so nothing below can cause a second send (ADR-004).
-  tx(() => {
-    run("UPDATE outbox SET status = 'sent', sent_at = ?, error = NULL WHERE id = ?", now(), o.id)
-    if (o.enrollment_id) run('UPDATE sequence_enrollments SET last_sent_at = ? WHERE id = ?', now(), o.enrollment_id)
-  })
+  run("UPDATE outbox SET status = 'sent', sent_at = ?, error = NULL WHERE id = ?", now(), o.id)
 
   // keep a copy in the server's Sent folder (Gmail does this on its own) — best effort
   if (cfg.appendSent) {
@@ -181,6 +174,8 @@ async function sendOutbox({ payload }: { payload: { outboxId: string } }): Promi
     const parsed = await parseRaw(raw)
     const r = storeMessage(acc.id, parsed, { accountEmail: acc.email, folder: null, uid: null, seen: true, inInbox: false })
     run('UPDATE outbox SET thread_id = ? WHERE id = ?', r.threadId, o.id)
+    // our answer takes the conversation out of "reply needed" (and starts the "waiting on them" clock)
+    recomputeFollowUps([r.threadId])
   } catch (e) {
     console.warn('Sent, but could not add the message to its thread', e)
   }
@@ -198,10 +193,7 @@ registerJobHandler<{ outboxId: string }>(
     }
   },
   (job, error) => {
-  run("UPDATE outbox SET status = 'failed', error = ? WHERE id = ?", error, job.payload.outboxId)
-  const o = get<{ enrollment_id: string | null }>('SELECT enrollment_id FROM outbox WHERE id = ?', job.payload.outboxId)
-  if (o?.enrollment_id)
-    run("UPDATE sequence_enrollments SET status = 'failed', stopped_reason = ?, next_run_at = NULL WHERE id = ?", `Send failed: ${error}`, o.enrollment_id)
+    run("UPDATE outbox SET status = 'failed', error = ? WHERE id = ?", error, job.payload.outboxId)
   }
 )
 

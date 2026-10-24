@@ -9,7 +9,8 @@ const USER_TABLES = [
   'spaces', 'folders', 'lists', 'statuses', 'tasks', 'tags', 'task_tags', 'custom_fields', 'custom_field_values',
   'checklists', 'checklist_items', 'comments', 'attachments', 'task_dependencies', 'activity_log',
   'sprints', 'time_entries', 'goals', 'key_results', 'key_result_tasks', 'dashboards', 'dashboard_widgets', 'reminders',
-  'automations', 'email_templates', 'sequences', 'sequence_steps'
+  'automations', 'email_templates',
+  'team_members', 'crm_stages', 'companies', 'people', 'interactions', 'interaction_people', 'interaction_members', 'crm_ignored'
 ]
 
 export interface ExportFile {

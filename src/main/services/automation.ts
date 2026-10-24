@@ -24,7 +24,7 @@ import { listEvents } from './calendar'
 import { createTaskFromThread } from './mail/index'
 import { markThreadRead } from './mail/accounts'
 import { queueEmail } from './mail/send'
-import { enrollThread } from './mail/sequences'
+import { DUE_SQL, isOurs, ourIdentity } from './mail/followups'
 import type { MailAddress } from '@shared/mail'
 
 // ---------------------------------------------------------------- storage
@@ -77,7 +77,7 @@ export function validateAutomation(a: AutomationInput): void {
     if (act.type === 'send_email' && (!act.to?.trim() || !act.subject?.trim())) throw new Error('Fill in the recipient and subject of the email')
     if ((act.type === 'send_email' || act.type === 'reply_to_email') && !act.body?.trim()) throw new Error('Write the email text')
     if (act.type === 'create_task_from_email' && !get('SELECT 1 FROM lists WHERE id = ?', act.list_id)) throw new Error('Choose a list')
-    if (act.type === 'start_sequence' && !get('SELECT 1 FROM sequences WHERE id = ?', act.sequence_id)) throw new Error('Choose a follow-up sequence')
+    if (act.type === 'start_sequence') throw new Error('Automatic follow-up sequences were removed in FollowUp 1.1. Use the Follow-up view in the Inbox, or the “Email needs follow-up” trigger.')
     if (act.type === 'set_status' && !act.status?.trim()) throw new Error('Choose a status')
     if ((act.type === 'move_to_list' || act.type === 'create_task') && !get('SELECT 1 FROM lists WHERE id = ?', act.list_id))
       throw new Error('Choose a list')
@@ -516,17 +516,17 @@ function executeAction(a: Action, ctx: Ctx, toasts: AppNotification[]): string {
     }
     case 'reply_to_email': {
       const m = needEmail()
-      const skip = automatedSendBlocked(ctx, m.from)
+      // our own email (a "no answer" follow-up): write to the people it went to, not to ourselves
+      const to = isOurs(m.from, ourIdentity()) ? m.to : m.from
+      if (!to) return 'Skipped: nobody to write to'
+      const skip = automatedSendBlocked(ctx, to)
       if (skip) return skip
       const subject = /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`
-      queueEmail({ account_id: m.accountId, to: m.from, subject, body: renderTemplate(a.body, ctx), reply_to: m.rowId }, { source: 'automation' })
-      return `Queued reply to ${m.from}`
+      queueEmail({ account_id: m.accountId, to, subject, body: renderTemplate(a.body, ctx), reply_to: m.rowId }, { source: 'automation' })
+      return `Queued reply to ${to}`
     }
-    case 'start_sequence': {
-      const m = needEmail()
-      const e = enrollThread(m.threadId, a.sequence_id)
-      return `Started follow-up “${e.sequence_name}”`
-    }
+    case 'start_sequence':
+      throw new Error('Automatic follow-up sequences were removed in FollowUp 1.1 — remove this action')
     case 'mark_email_read':
       markThreadRead(needEmail().threadId, true)
       return 'Marked as read'
@@ -680,7 +680,7 @@ function scheduleDue(t: Extract<Trigger, { type: 'schedule' }>, at: Date, create
 export function automationTick(at: Date = new Date()): number {
   const rules = all<Row>(`SELECT ${COLS} FROM automations WHERE enabled = 1`)
     .map(toAutomation)
-    .filter((r) => ['due_date_arrives', 'task_overdue', 'schedule', 'email_no_reply', 'event_starts'].includes(r.trigger.type))
+    .filter((r) => ['due_date_arrives', 'task_overdue', 'schedule', 'email_no_reply', 'email_needs_follow_up', 'event_starts'].includes(r.trigger.type))
   if (!rules.length) return 0
   const today = localDate(at)
   let queued = 0
@@ -709,14 +709,33 @@ export function automationTick(at: Date = new Date()): number {
         const waiting = all<{ id: string; thread_id: string }>(
           `SELECT m.id, m.thread_id FROM mail_messages m
            WHERE m.is_outbound = 1 AND m.date <= ? AND m.date >= ?
-             AND m.date = (SELECT MAX(x.date) FROM mail_messages x WHERE x.thread_id = m.thread_id)
-             AND NOT EXISTS (SELECT 1 FROM sequence_enrollments e WHERE e.thread_id = m.thread_id AND e.status = 'active')`,
+             AND m.date = (SELECT MAX(x.date) FROM mail_messages x WHERE x.thread_id = m.thread_id)`,
           cutoff,
           floor
         )
         for (const m of waiting) {
           if (!fireOnce(`${rule.id}:noreply:${m.id}`)) continue
           enqueue('automation', { ruleId: rule.id, taskId: null, threadId: m.thread_id, messageId: m.id, trigger: `no reply in ${t.days} days`, depth: 0 } satisfies Payload)
+          queued++
+        }
+        continue
+      }
+      if (t.type === 'email_needs_follow_up') {
+        // conversations that just became due in Follow-up (once per waiting message)
+        const iso = at.toISOString()
+        const due = all<{ thread_id: string; anchor: string; kind: string }>(
+          `SELECT th.id thread_id, th.followup_anchor anchor, th.followup_kind kind FROM mail_threads th
+           WHERE ${DUE_SQL} AND th.followup_due_at >= ?${t.kind ? ' AND th.followup_kind = ?' : ''}`,
+          iso,
+          iso,
+          // don't fire for everything that was already waiting when the rule was made
+          rule.created_at,
+          ...(t.kind ? [t.kind] : [])
+        )
+        for (const d of due) {
+          if (!fireOnce(`${rule.id}:followup:${d.anchor}`)) continue
+          const label = d.kind === 'reply' ? 'email needs your reply' : 'no answer to your email'
+          enqueue('automation', { ruleId: rule.id, taskId: null, threadId: d.thread_id, messageId: d.anchor, trigger: label, depth: 0 } satisfies Payload)
           queued++
         }
         continue

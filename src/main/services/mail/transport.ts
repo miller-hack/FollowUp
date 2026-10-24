@@ -9,7 +9,18 @@ export type MailAuth = { pass: string } | { accessToken: string }
 
 export interface FolderInfo {
   path: string
+  name: string
+  delimiter: string
   specialUse: string | null
+  /** \Noselect / \NonExistent folders only group others and can't be opened */
+  selectable: boolean
+}
+
+export interface EnvelopeInfo {
+  uid: number
+  flags: Set<string>
+  /** Message-ID header with angle brackets, when the message has one */
+  messageId: string | null
 }
 
 export interface FetchedMessage {
@@ -51,7 +62,13 @@ export class ImapSession {
   }
 
   async folders(): Promise<FolderInfo[]> {
-    return (await this.client.list()).map((f) => ({ path: f.path, specialUse: f.specialUse ?? null }))
+    return (await this.client.list()).map((f) => ({
+      path: f.path,
+      name: f.name,
+      delimiter: f.delimiter || '/',
+      specialUse: f.specialUse ?? null,
+      selectable: !f.flags.has('\\Noselect') && !f.flags.has('\\NonExistent')
+    }))
   }
 
   /** Select a folder; returns its UIDVALIDITY as a string (it is a BigInt in imapflow). */
@@ -71,6 +88,33 @@ export class ImapSession {
     }
   }
 
+  /** UID, flags and Message-ID only (no download): known messages just get a location. */
+  async *envelopes(range: string): AsyncGenerator<EnvelopeInfo> {
+    for await (const m of this.client.fetch(range, { uid: true, flags: true, envelope: true }, { uid: true })) {
+      const id = m.envelope?.messageId?.trim()
+      yield { uid: m.uid, flags: m.flags ?? new Set(), messageId: id ? (id.startsWith('<') ? id : `<${id}>`) : null }
+    }
+  }
+
+  /** Every UID in the open folder. */
+  async allUids(): Promise<number[]> {
+    const r = await this.client.search({ all: true }, { uid: true })
+    return Array.isArray(r) ? r : []
+  }
+
+  /** Move messages (UIDs in the open folder) to another folder. */
+  async move(uids: number[], destination: string): Promise<void> {
+    if (!uids.length) return
+    const ok = await this.client.messageMove(uids.join(','), destination, { uid: true })
+    if (!ok) throw new Error(`The server didn't move the messages to ${destination}`)
+  }
+
+  /** Permanently delete messages (UIDs in the open folder). */
+  async remove(uids: number[]): Promise<void> {
+    if (!uids.length) return
+    await this.client.messageDelete(uids.join(','), { uid: true })
+  }
+
   async setSeen(uids: number[], seen: boolean): Promise<void> {
     if (!uids.length) return
     const range = uids.join(',')
@@ -78,8 +122,10 @@ export class ImapSession {
     else await this.client.messageFlagsRemove(range, ['\\Seen'], { uid: true })
   }
 
-  async append(path: string, raw: Buffer, flags: string[]): Promise<void> {
-    await this.client.append(path, raw, flags)
+  /** Upload a message; returns its UID when the server reports it (UIDPLUS). */
+  async append(path: string, raw: Buffer, flags: string[]): Promise<number | null> {
+    const r = await this.client.append(path, raw, flags)
+    return r ? (r.uid ?? null) : null
   }
 
   async close(): Promise<void> {

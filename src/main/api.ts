@@ -18,7 +18,11 @@ import * as oauth from './services/oauth'
 import * as updater from './services/updater'
 import * as mail from './services/mail/index'
 import * as send from './services/mail/send'
-import * as sequences from './services/mail/sequences'
+import * as templates from './services/mail/templates'
+import * as followups from './services/mail/followups'
+import * as folders from './services/mail/folders'
+import { draftFollowUp } from './services/mail/followupDraft'
+import * as drafts from './services/mail/drafts'
 import * as store from './services/mail/store'
 import { detectMailSettings } from './services/mail/detect'
 import { friendlyMailError } from './services/mail/transport'
@@ -26,6 +30,14 @@ import type { CalDavConfig } from '@shared/mail'
 import { applySettings, markQuitting } from './desktop'
 
 /** Main-process implementation of the IPC contract. */
+function validateFollowUpSettings(f: Partial<import('@shared/mail').FollowUpSettings>): void {
+  if (f.replyAfterHours !== undefined && !(f.replyAfterHours >= 1 && f.replyAfterHours <= 24 * 30)) throw new Error('Choose between 1 hour and 30 days for “reply needed”')
+  if (f.nudgeAfterHours !== undefined && !(f.nudgeAfterHours >= 1 && f.nudgeAfterHours <= 24 * 30)) throw new Error('Choose between 1 hour and 30 days for “waiting on them”')
+  if (f.workingDays !== undefined && (!Array.isArray(f.workingDays) || f.workingDays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)))
+    throw new Error('Choose the working days')
+  if (f.companyDomains?.some((d) => !/^@?[a-z0-9-]+(.[a-z0-9-]+)+$/i.test(d.trim()))) throw new Error('Enter company domains like acme.com')
+}
+
 export const api: Api = {
   getTree: hierarchy.getTree,
   createSpace: hierarchy.createSpace,
@@ -126,9 +138,17 @@ export const api: Api = {
   runAutomationNow: automation.runAutomationNow,
 
   listAccounts: accounts.listAccounts,
-  createAccount: accounts.createAccount,
+  // a mailbox address counts as "us" for Follow-up: recompute when the set changes
+  createAccount: (input) => {
+    const a = accounts.createAccount(input)
+    followups.recomputeFollowUps()
+    return a
+  },
   updateAccount: accounts.updateAccount,
-  deleteAccount: accounts.deleteAccount,
+  deleteAccount: (id) => {
+    accounts.deleteAccount(id)
+    followups.recomputeFollowUps()
+  },
   getMailSettingsFor: (email) => detectMailSettings(email),
   testAccount: async (input) => {
     if (input.kind === 'mail') return { ...(await accounts.testMailConnection(input)), caldav: null }
@@ -148,7 +168,13 @@ export const api: Api = {
   getUnreadCount: store.unreadInboxCount,
   markThreadRead: accounts.markThreadRead,
   setThreadDone: accounts.setThreadDone,
-  sendEmail: (input) => send.queueEmail(input),
+  sendEmail: (input) => {
+    const o = send.queueEmail(input)
+    if (input.draft_id) drafts.discardDraft(input.draft_id)
+    return o
+  },
+  saveDraft: (input, replaces) => drafts.saveDraft(input, replaces ?? null),
+  discardDraft: drafts.discardDraft,
   listOutbox: send.listOutbox,
   retryOutbox: send.retryOutbox,
   cancelOutbox: send.cancelOutbox,
@@ -161,17 +187,19 @@ export const api: Api = {
   createTaskFromThread: (threadId, listId) => mail.createTaskFromThread(threadId, listId),
   linkThreadTask: mail.linkThreadTask,
   unlinkThreadTask: mail.unlinkThreadTask,
-  listEmailTemplates: sequences.listTemplates,
-  saveEmailTemplate: sequences.saveTemplate,
-  deleteEmailTemplate: sequences.deleteTemplate,
+  listEmailTemplates: templates.listTemplates,
+  saveEmailTemplate: templates.saveTemplate,
+  deleteEmailTemplate: templates.deleteTemplate,
 
-  listSequences: sequences.listSequences,
-  createSequence: sequences.createSequence,
-  updateSequence: sequences.updateSequence,
-  deleteSequence: sequences.deleteSequence,
-  listEnrollments: (filter) => sequences.listEnrollments(filter),
-  enrollThread: sequences.enrollThread,
-  stopEnrollment: (id) => sequences.stopEnrollment(id),
+  listMailFolders: (accountId) => folders.listMailFolders(accountId ?? null),
+  moveThread: folders.moveThread,
+  deleteThreadForever: folders.deleteThreadForever,
+
+  getFollowUpCounts: () => followups.followUpCounts(),
+  getFollowUpDraft: (threadId, instructions) => draftFollowUp(threadId, instructions ?? ''),
+  snoozeFollowUp: followups.snoozeFollowUp,
+  dismissFollowUp: followups.dismissFollowUp,
+  restoreFollowUp: followups.restoreFollowUp,
 
   listCalendars: calendar.listCalendars,
   updateCalendar: calendar.updateCalendar,
@@ -231,9 +259,20 @@ export const api: Api = {
     // updates are executables: only fetch them over HTTPS (localhost allowed for testing)
     if (feed && !/^https:\/\//i.test(feed) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(feed.endsWith('/') ? feed : `${feed}/`))
       throw new Error('The update server must be an https:// address')
+    if (patch.followups) validateFollowUpSettings(patch.followups)
     const s = meta.updateSettings(patch)
     applySettings(s)
+    // new company domains, working days or waiting times change what needs follow-up
+    if (patch.followups) followups.recomputeFollowUps()
     return s
+  },
+  setUiWidth: (key, width) => {
+    if (!/^[w:.-]{1,80}$/.test(key)) throw new Error('Invalid layout key')
+    const widths = { ...meta.getSettings().ui.widths }
+    if (width === null) delete widths[key]
+    else if (Number.isFinite(width) && width >= 40 && width <= 4000) widths[key] = Math.round(width)
+    else throw new Error('Invalid width')
+    meta.updateSettings({ ui: { widths } })
   },
   backupNow: files.backupNow,
   listBackups: files.listBackups,

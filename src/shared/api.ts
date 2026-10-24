@@ -9,12 +9,12 @@ import type {
   CalendarInfo,
   ComposeInput,
   EmailTemplate,
-  Enrollment,
   EventInput,
+  FollowUpCounts,
+  FollowUpDraft,
+  MailFolderInfo,
   MailThread,
   OutboxItem,
-  Sequence,
-  SequenceInput,
   ThreadDetail,
   ThreadQuery
 } from './mail'
@@ -192,6 +192,9 @@ export interface Api {
   markThreadRead(id: string, read: boolean): void
   setThreadDone(id: string, done: boolean): void
   sendEmail(input: ComposeInput): OutboxItem
+  /** save a draft in the server's Drafts folder (replacing an earlier version); returns its id */
+  saveDraft(input: ComposeInput, replaces?: string | null): Promise<string>
+  discardDraft(messageId: string): void
   listOutbox(threadId?: string): (OutboxItem & { thread_id: string | null })[]
   retryOutbox(id: string): void
   cancelOutbox(id: string): void
@@ -203,14 +206,20 @@ export interface Api {
   saveEmailTemplate(input: Partial<EmailTemplate> & { name: string }): EmailTemplate
   deleteEmailTemplate(id: string): void
 
-  // follow-up sequences
-  listSequences(): Sequence[]
-  createSequence(input: SequenceInput): Sequence
-  updateSequence(id: string, input: SequenceInput): Sequence
-  deleteSequence(id: string): void
-  listEnrollments(filter?: { threadId?: string; activeOnly?: boolean }): Enrollment[]
-  enrollThread(threadId: string, sequenceId: string, to?: string): Enrollment
-  stopEnrollment(id: string): void
+  /** server folders of the mail accounts (all accounts when omitted) */
+  listMailFolders(accountId?: string | null): MailFolderInfo[]
+  /** move a conversation's messages between server folders: by role ('inbox', 'archive', 'spam', 'trash') or 'folder:<path>' */
+  moveThread(threadId: string, from: string, to: string): void
+  /** permanently delete a conversation that is in Spam or Trash */
+  deleteThreadForever(threadId: string): void
+
+  // follow-up (ADR-015)
+  getFollowUpCounts(): FollowUpCounts
+  /** a follow-up email to edit and send (AI-written when AI is set up) */
+  getFollowUpDraft(threadId: string, instructions?: string): Promise<FollowUpDraft>
+  snoozeFollowUp(threadId: string, until: string): void
+  dismissFollowUp(threadId: string): void
+  restoreFollowUp(threadId: string): void
 
   // calendar
   listCalendars(): CalendarInfo[]
@@ -275,6 +284,8 @@ export interface Api {
   setViewConfig(key: string, config: ViewConfig): void
   getSettings(): Settings
   updateSettings(patch: Partial<Settings>): Settings
+  /** remember a panel or column width (null = back to default); never refreshes other views */
+  setUiWidth(key: string, width: number | null): void
   backupNow(): BackupInfo
   listBackups(): BackupInfo[]
   getDataPath(): string
@@ -287,7 +298,7 @@ export type ApiMethod = keyof Api
 export const READ_ONLY_PREFIXES = ['get', 'list', 'query', 'search', 'test']
 
 /** Mutations that never affect data shown elsewhere, so they don't trigger a refetch. */
-const QUIET_METHODS = new Set(['setViewConfig', 'openAttachment', 'openDataFolder', 'exportJson', 'exportTimeCsv', 'exportIcs', 'cancelSignIn', 'checkForUpdates', 'installUpdate'])
+const QUIET_METHODS = new Set(['setViewConfig', 'setUiWidth', 'openAttachment', 'openDataFolder', 'exportJson', 'exportTimeCsv', 'exportIcs', 'cancelSignIn', 'checkForUpdates', 'installUpdate'])
 
 /** Events the main process pushes to the renderer (besides `data-changed`). */
 export type AppEvent =

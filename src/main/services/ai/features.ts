@@ -174,6 +174,22 @@ export function aiDraftReply(threadId: string, instructions: string, senderName:
   })
 }
 
+/**
+ * A follow-up email for a conversation in Follow-up (ADR-015): "reply" answers what the other side
+ * is waiting for; "nudge" politely chases an answer to our last email. The user edits and sends it.
+ */
+export function aiDraftFollowUp(threadId: string, kind: 'reply' | 'nudge', senderName: string, client: string, instructions: string): Promise<string> {
+  const { subject, text } = threadText(threadId, 10)
+  const goal =
+    kind === 'reply'
+      ? 'The other side wrote last and has been waiting for an answer for more than a day. Write the reply: answer their questions and requests as far as the thread allows, briefly apologise for the delay only if it was long, and say clearly what happens next.'
+      : 'The user wrote last and the other side has not answered. Write a short, friendly follow-up that refers to what the user asked or proposed, gives a reason to reply (a question, a decision needed, a date), and makes answering easy. Do not repeat the whole previous email and do not sound impatient.'
+  return ask('email_followup', {
+    system: `You write follow-up emails for the user (${senderName || 'the user'}). Reply with the email body only: no subject line, no quoted history, no placeholders like [Name] unless the information is truly unknown. Match the language and formality of the thread. Keep it under 150 words. ${DATA_NOTE}`,
+    prompt: `${nowContext()}\n${goal}\n${instructions.trim() ? `Also: ${clip(instructions, 1000)}\n` : ''}<data>\n${client ? `${client}\n\n` : ''}Subject: ${subject}\n\n${text}\n</data>`
+  })
+}
+
 export async function aiExtractTasks(threadId: string): Promise<{ title: string; due_date: string | null }[]> {
   const { subject, text } = threadText(threadId)
   const r = await ask(

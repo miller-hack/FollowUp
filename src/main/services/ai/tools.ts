@@ -9,7 +9,6 @@ import { listGoals } from '../planning'
 import { createEvent, listCalendars, listEvents } from '../calendar'
 import { createReminder } from '../notify'
 import { getThread, listThreads } from '../mail/store'
-import { enrollThread, listSequences } from '../mail/sequences'
 import type { ToolSpec } from './providers'
 
 /** UI-side effects requested by tools (e.g. open a compose window). */
@@ -247,12 +246,20 @@ export const TOOLS: AssistantTool[] = [
     () => 'Check your goals'
   ),
   tool(
-    'list_follow_up_sequences',
-    'Email follow-up sequences the user has set up (ids and names).',
-    {},
+    'list_follow_ups',
+    'Email conversations in Follow-up: kind "reply" = someone is waiting for an answer from the user; "nudge" = the user is waiting for an answer. Sorted most urgent first.',
+    { kind: opt(oneOf(['reply', 'nudge'] as const, 'Only this kind')) },
     false,
-    () => listSequences().map((s) => ({ id: s.id, name: s.name, emails: s.steps.length })),
-    () => 'Look at follow-up sequences'
+    (i) =>
+      listThreads({ folder: 'followups', followup_kind: (i.kind as 'reply' | 'nudge' | undefined) ?? null, limit: 30 }).map((t) => ({
+        thread_id: t.id,
+        subject: t.subject,
+        kind: t.followup?.kind,
+        waiting_since: t.followup?.since,
+        with: t.participants.filter((p) => p.name !== 'me').map((p) => p.name || p.address),
+        company: t.company?.name ?? null
+      })),
+    () => 'Look at emails that need follow-up'
   ),
 
   // ---------------- write (approval)
@@ -371,22 +378,6 @@ export const TOOLS: AssistantTool[] = [
     },
     (i) => `Remind you “${i.title}” at ${String(i.remind_at).replace('T', ' ')}`
   ),
-  tool(
-    'start_follow_up',
-    'Start an automatic follow-up sequence on an email thread (sends reminder emails until someone replies).',
-    { thread_id: str('Email thread id'), sequence_id: str('Sequence id from list_follow_up_sequences') },
-    true,
-    (i) => {
-      const e = enrollThread(i.thread_id as string, i.sequence_id as string)
-      return { started: e.sequence_name, next_email_at: e.next_run_at }
-    },
-    (i) => {
-      const th = get<{ subject: string }>('SELECT subject FROM mail_threads WHERE id = ?', i.thread_id)
-      const s = get<{ name: string }>('SELECT name FROM sequences WHERE id = ?', i.sequence_id)
-      return `Start follow-up “${s?.name ?? '?'}” on “${th?.subject ?? 'email'}” (sends emails automatically)`
-    }
-  ),
-
   // ---------------- UI (the user reviews before anything is sent)
   tool(
     'draft_email',

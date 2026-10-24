@@ -4,9 +4,10 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser'
 import type { EmailCategory } from '@shared/ai'
-import type { EnrollmentSummary, MailAddress, MailAttachment, MailMessage, MailThread, ThreadDetail, ThreadQuery } from '@shared/mail'
+import type { FollowUpKind, MailAddress, MailAttachment, MailMessage, MailThread, ThreadDetail, ThreadQuery } from '@shared/mail'
 import { all, get, marks, now, run, tx, uuid } from '../../db'
 import { ftsQuery } from '../tasks'
+import { DUE_SQL } from './followups'
 
 let mailDir = join(tmpdir(), 'followup-mail')
 /** Where attachment files are kept (set to the app data folder at startup). */
@@ -500,20 +501,24 @@ interface MsgRow {
   body_html: string | null
   is_read: number
   is_outbound: number
+  is_draft?: number
 }
 
-function enrollmentsFor(threadIds: string[]): Map<string, EnrollmentSummary> {
-  const out = new Map<string, EnrollmentSummary>()
+/** The client company of each thread's outside participants (people by address, then companies by domain). */
+function companiesFor(threadIds: string[]): Map<string, MailThread['company']> {
+  const out = new Map<string, MailThread['company']>()
   if (!threadIds.length) return out
-  const rows = all<EnrollmentSummary & { thread_id: string }>(
-    `SELECT e.id, e.thread_id, e.sequence_id, s.name sequence_name, e.status, e.current_step, e.next_run_at,
-       (SELECT COUNT(*) FROM sequence_steps st WHERE st.sequence_id = e.sequence_id) total_steps
-     FROM sequence_enrollments e JOIN sequences s ON s.id = e.sequence_id
-     WHERE e.thread_id IN (${marks(threadIds.length)})
-     ORDER BY CASE WHEN e.status = 'active' THEN 0 ELSE 1 END, e.enrolled_at DESC`,
+  const rows = all<{ thread_id: string; id: string; name: string; stage: string | null; color: string | null }>(
+    `SELECT x.thread_id, c.id, c.name, st.name stage, st.color FROM (
+       SELECT DISTINCT m.thread_id, m.from_addr addr FROM mail_messages m WHERE m.thread_id IN (${marks(threadIds.length)}) AND m.is_outbound = 0
+     ) x
+     JOIN companies c ON c.id = COALESCE(
+       (SELECT p.company_id FROM people p WHERE p.email = x.addr OR p.other_emails LIKE '%"' || x.addr || '"%' LIMIT 1),
+       (SELECT c2.id FROM companies c2 WHERE c2.domains LIKE '%"' || substr(x.addr, instr(x.addr, '@') + 1) || '"%' LIMIT 1))
+     LEFT JOIN crm_stages st ON st.id = c.stage_id`,
     ...threadIds
   )
-  for (const r of rows) if (!out.has(r.thread_id)) out.set(r.thread_id, r)
+  for (const r of rows) if (!out.has(r.thread_id)) out.set(r.thread_id, { id: r.id, name: r.name, stage: r.stage, color: r.color })
   return out
 }
 
@@ -526,10 +531,26 @@ interface ThreadRow {
   ai_category: EmailCategory | null
   ai_priority: number | null
   ai_summary: string | null
+  followup_kind: FollowUpKind | null
+  followup_since: string | null
+  followup_due_at: string | null
+  followup_snoozed_until: string | null
+  followup_dismissed: number
   message_count: number
   unread_count: number
   has_attachments: number
 }
+
+/** A message of the thread is in a server folder with this role. */
+const IN_ROLE = (role: string) =>
+  `EXISTS (SELECT 1 FROM mail_messages rx JOIN mail_locations l ON l.message_id = rx.id
+    JOIN mail_folders f ON f.account_id = l.account_id AND f.path = l.folder WHERE rx.thread_id = th.id AND f.role = '${role}')`
+
+/** Not everything in the thread is in Spam or Trash. */
+const NOT_BINNED = `EXISTS (SELECT 1 FROM mail_messages bx WHERE bx.thread_id = th.id AND (
+    NOT EXISTS (SELECT 1 FROM mail_locations l WHERE l.message_id = bx.id)
+    OR EXISTS (SELECT 1 FROM mail_locations l JOIN mail_folders f ON f.account_id = l.account_id AND f.path = l.folder
+               WHERE l.message_id = bx.id AND COALESCE(f.role, '') NOT IN ('spam', 'trash'))))`
 
 export function listThreads(q: ThreadQuery): MailThread[] {
   const where: string[] = []
@@ -539,20 +560,51 @@ export function listThreads(q: ThreadQuery): MailThread[] {
     where.push('th.account_id = ?')
     params.push(q.account_id)
   }
+  const nowIso = new Date().toISOString()
+  let order = 'th.last_message_at DESC'
   switch (q.folder) {
     case 'inbox':
       where.push('th.done = 0')
       having.push('MAX(m.is_inbox) = 1')
       break
+    case 'followups':
+      where.push(DUE_SQL)
+      params.push(nowIso, nowIso)
+      if (q.followup_kind) {
+        where.push('th.followup_kind = ?')
+        params.push(q.followup_kind)
+      }
+      // most important first (AI priority when sorted), then longest waiting
+      order = 'COALESCE(th.ai_priority, 2), th.followup_due_at'
+      break
     case 'sent':
-      having.push('MAX(m.is_outbound) = 1')
+      where.push(NOT_BINNED)
+      having.push('MAX(m.is_outbound * (1 - m.is_draft)) = 1')
       break
     case 'done':
-      where.push('th.done = 1')
+      where.push('th.done = 1', NOT_BINNED)
       break
-    case 'followups':
-      where.push("EXISTS (SELECT 1 FROM sequence_enrollments e WHERE e.thread_id = th.id AND e.status = 'active')")
+    case 'all':
+      where.push(NOT_BINNED)
       break
+    case 'drafts':
+      where.push(`(EXISTS (SELECT 1 FROM mail_messages dx WHERE dx.thread_id = th.id AND dx.is_draft = 1) OR ${IN_ROLE('drafts')})`)
+      break
+    case 'spam':
+    case 'trash':
+      where.push(IN_ROLE(q.folder))
+      break
+    case 'archive':
+      // a server Archive folder, or Gmail's All Mail minus the inbox
+      where.push(`(${IN_ROLE('archive')} OR ${IN_ROLE('all')})`, NOT_BINNED)
+      having.push('MAX(m.is_inbox) = 0')
+      break
+    default:
+      if (q.folder.startsWith('folder:')) {
+        const [accountId, path] = q.folder.slice(7).split('|')
+        where.push(`EXISTS (SELECT 1 FROM mail_messages fx JOIN mail_locations l ON l.message_id = fx.id WHERE fx.thread_id = th.id AND l.account_id = ? AND l.folder = ?)`)
+        params.push(accountId, path ?? '')
+      }
   }
   const fq = q.search ? ftsQuery(q.search) : null
   if (fq) {
@@ -565,12 +617,14 @@ export function listThreads(q: ThreadQuery): MailThread[] {
   }
   if (q.unread_only) having.push('SUM(CASE WHEN m.is_read = 0 AND m.is_outbound = 0 THEN 1 ELSE 0 END) > 0')
   const rows = all<ThreadRow>(
-    `SELECT th.id, th.account_id, th.subject, th.done, th.last_message_at, th.ai_category, th.ai_priority, th.ai_summary, COUNT(m.id) message_count,
+    `SELECT th.id, th.account_id, th.subject, th.done, th.last_message_at, th.ai_category, th.ai_priority, th.ai_summary,
+       th.followup_kind, th.followup_since, th.followup_due_at, th.followup_snoozed_until,
+       COALESCE(th.followup_dismissed_for, '') = COALESCE(th.followup_anchor, '-') followup_dismissed, COUNT(m.id) message_count,
        SUM(CASE WHEN m.is_read = 0 AND m.is_outbound = 0 THEN 1 ELSE 0 END) unread_count, MAX(m.has_attachments) has_attachments
-     FROM mail_threads th JOIN mail_messages m ON m.thread_id = th.id
+     FROM mail_threads th JOIN mail_messages m ON m.thread_id = th.id AND m.is_draft < 2
      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
      GROUP BY th.id ${having.length ? 'HAVING ' + having.join(' AND ') : ''}
-     ORDER BY th.last_message_at DESC LIMIT ${Math.min(500, q.limit ?? 200)}`,
+     ORDER BY ${order} LIMIT ${Math.min(500, q.limit ?? 200)}`,
     ...params
   )
   return decorate(rows)
@@ -586,7 +640,8 @@ function decorate(
     ...ids
   )
   const links = all<{ thread_id: string; task_id: string }>(`SELECT thread_id, task_id FROM email_task_links WHERE thread_id IN (${marks(ids.length)})`, ...ids)
-  const enrollments = enrollmentsFor(ids)
+  const companies = companiesFor(ids)
+  const nowIso = new Date().toISOString()
   return rows.map((r) => {
     const mine = msgs.filter((m) => m.thread_id === r.id)
     const people = new Map<string, MailAddress>()
@@ -603,7 +658,18 @@ function decorate(
       has_attachments: !!r.has_attachments,
       done: !!r.done,
       task_ids: links.filter((l) => l.thread_id === r.id).map((l) => l.task_id),
-      enrollment: enrollments.get(r.id) ?? null,
+      followup:
+        r.followup_kind && r.followup_since && r.followup_due_at
+          ? {
+              kind: r.followup_kind,
+              since: r.followup_since,
+              due_at: r.followup_due_at,
+              snoozed_until: r.followup_snoozed_until,
+              dismissed: !!r.followup_dismissed,
+              due: r.followup_due_at <= nowIso && !r.followup_dismissed && (!r.followup_snoozed_until || r.followup_snoozed_until <= nowIso)
+            }
+          : null,
+      company: companies.get(r.id) ?? null,
       ai: r.ai_category ? { category: r.ai_category, priority: (r.ai_priority ?? 2) as 1 | 2 | 3, summary: r.ai_summary ?? '' } : null
     }
   })
@@ -611,7 +677,9 @@ function decorate(
 
 export function getThread(id: string): ThreadDetail | null {
   const row = get<ThreadRow>(
-    `SELECT th.id, th.account_id, th.subject, th.done, th.last_message_at, th.ai_category, th.ai_priority, th.ai_summary, COUNT(m.id) message_count,
+    `SELECT th.id, th.account_id, th.subject, th.done, th.last_message_at, th.ai_category, th.ai_priority, th.ai_summary,
+       th.followup_kind, th.followup_since, th.followup_due_at, th.followup_snoozed_until,
+       COALESCE(th.followup_dismissed_for, '') = COALESCE(th.followup_anchor, '-') followup_dismissed, COUNT(m.id) message_count,
        SUM(CASE WHEN m.is_read = 0 AND m.is_outbound = 0 THEN 1 ELSE 0 END) unread_count, MAX(m.has_attachments) has_attachments
      FROM mail_threads th JOIN mail_messages m ON m.thread_id = th.id WHERE th.id = ? GROUP BY th.id`,
     id
@@ -619,8 +687,8 @@ export function getThread(id: string): ThreadDetail | null {
   if (!row) return null
   const [thread] = decorate([row])
   const msgs = all<MsgRow>(
-    `SELECT id, thread_id, account_id, message_id, from_name, from_addr, to_addrs, cc_addrs, subject, date, snippet, body_text, body_html, is_read, is_outbound
-     FROM mail_messages WHERE thread_id = ? ORDER BY date`,
+    `SELECT id, thread_id, account_id, message_id, from_name, from_addr, to_addrs, cc_addrs, subject, date, snippet, body_text, body_html, is_read, is_outbound, is_draft
+     FROM mail_messages WHERE thread_id = ? AND is_draft < 2 ORDER BY date`,
     id
   )
   const atts = msgs.length
@@ -655,6 +723,7 @@ export function toMessage(m: MsgRow, attachments: MailAttachment[] = []): MailMe
     body_html: m.body_html,
     is_read: !!m.is_read,
     is_outbound: !!m.is_outbound,
+    is_draft: !!m.is_draft,
     attachments: attachments.map(({ id, filename, mime, size }) => ({ id, filename, mime, size }))
   }
 }

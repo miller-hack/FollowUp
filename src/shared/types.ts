@@ -288,10 +288,9 @@ export interface Settings {
     /** load images from the internet in emails (they can reveal that you opened the mail) */
     loadRemoteImages: boolean
   }
-  followups: {
-    /** what to do with follow-ups that were due while the PC was off for more than a day */
-    missedPolicy: 'send' | 'skip'
-  }
+  followups: FollowUpSettings
+  /** remembered layout: widths of resizable panels and table columns, by key */
+  ui: { widths: Record<string, number> }
   ai: AiSettings
   updates: {
     /** check for and download updates automatically (installed app only) */
@@ -307,6 +306,7 @@ export interface Settings {
 }
 
 import type { AiSettings } from './ai'
+import type { FollowUpSettings } from './mail'
 
 // ---------------------------------------------------------------- time tracking
 

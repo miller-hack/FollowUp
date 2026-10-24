@@ -21,6 +21,8 @@ export type Trigger =
   | { type: 'email_received'; account_id?: string | null }
   /** an email you sent got no reply within `days` (fires once per sent email) */
   | { type: 'email_no_reply'; days: number }
+  /** a conversation enters Follow-up: they're waiting for our reply, or we're waiting for theirs (ADR-015) */
+  | { type: 'email_needs_follow_up'; kind?: 'reply' | 'nudge' | null }
   /** a calendar event starts in `minutes_before` minutes */
   | { type: 'event_starts'; minutes_before: number }
   /** AI triage classified a new email (needs auto-triage on) */
@@ -45,6 +47,7 @@ export const TRIGGER_CONTEXT: Record<TriggerType, TriggerContext> = {
   schedule: 'none',
   email_received: 'email',
   email_no_reply: 'email',
+  email_needs_follow_up: 'email',
   event_starts: 'none',
   email_triaged: 'email'
 }
@@ -98,6 +101,7 @@ export type Action =
   | { type: 'send_email'; account_id?: string | null; to: string; subject: string; body: string }
   | { type: 'create_task_from_email'; list_id: string }
   | { type: 'reply_to_email'; body: string }
+  /** removed in 1.1 (sequences were replaced by Follow-up); kept so old rules still load */
   | { type: 'start_sequence'; sequence_id: string }
   | { type: 'mark_email_read' }
   /** ask the AI (task + comments + linked email as context) and add its answer as a comment */
@@ -115,6 +119,9 @@ export const TASK_ACTIONS: ActionType[] = [
 
 /** Actions that need an email in context. */
 export const EMAIL_ACTIONS: ActionType[] = ['create_task_from_email', 'reply_to_email', 'start_sequence', 'mark_email_read']
+
+/** Actions that can no longer be added (old rules that use them are switched off). */
+export const RETIRED_ACTIONS: ActionType[] = ['start_sequence']
 
 /** Whether an action can run for a trigger context. */
 export function actionAllowed(action: ActionType, ctx: TriggerContext): boolean {

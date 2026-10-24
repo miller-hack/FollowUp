@@ -9,7 +9,7 @@ import { automationTick } from './services/automation'
 import { processJobs, recoverJobs, setJobWaker } from './services/jobs'
 import { syncAllAccounts } from './services/mail/index'
 import { legacyInlinePending } from './services/mail/store'
-import { sequenceTick } from './services/mail/sequences'
+import { followUpTick, recomputeFollowUps } from './services/mail/followups'
 import { setSecretCodec } from './services/mail/secrets'
 import { setMailDataDir } from './services/mail/store'
 import { recoverChats, setAiEmitter } from './services/ai/assistant'
@@ -315,8 +315,13 @@ function tick(): void {
     console.error('Notification check failed', e)
   }
   try {
+    // follow-up states move with the clock (working days) and with settings: refresh every 5 minutes
+    if (Date.now() - lastFollowUpRefresh >= 5 * 60_000) {
+      lastFollowUpRefresh = Date.now()
+      if (recomputeFollowUps()) broadcastChanged('followups')
+    }
     automationTick()
-    sequenceTick()
+    followUpTick()
     slackTick()
   } catch (e) {
     console.error('Automation check failed', e)
@@ -337,6 +342,7 @@ function tick(): void {
 
 let lastMailSync = 0
 let lastCalSync = 0
+let lastFollowUpRefresh = 0
 
 export function startScheduler(): void {
   setSecretCodec({
