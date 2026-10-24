@@ -17,3 +17,6 @@ dist-update/
 
 # local Claude Code sessions
 .claude/
+
+# local archives
+*.zip
