@@ -506,10 +506,21 @@ try {
     await page.getByRole('button', { name: 'New event' }).click()
     await page.getByPlaceholder('Event title').fill('Client call')
     await page.getByRole('button', { name: 'Save' }).click()
-    // "New event" starts at the next full hour, which is next week late on a Sunday: check the store
+    // "New event" starts at the next full hour, which is next week late on a Sunday: the calendar must follow it
     await page.getByPlaceholder('Event title').waitFor({ state: 'detached' })
     const events = await invoke('listEvents', '2000-01-01', '2100-01-01')
     if (!events.some((e) => e.title === 'Client call')) throw new Error('new event missing')
+    await page.locator('.fc-event', { hasText: 'Client call' }).waitFor()
+    // moving it three weeks out from the dialog takes the calendar to that week
+    await page.locator('.fc-event', { hasText: 'Client call' }).click()
+    const later = new Date(Date.now() + 21 * 86_400_000)
+    const laterDay = `${later.getFullYear()}-${String(later.getMonth() + 1).padStart(2, '0')}-${String(later.getDate()).padStart(2, '0')}`
+    await page.getByLabel('Start', { exact: true }).fill(`${laterDay}T10:00`)
+    await page.getByLabel('End', { exact: true }).fill(`${laterDay}T11:00`)
+    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByPlaceholder('Event title').waitFor({ state: 'detached' })
+    await page.locator(`.fc-timegrid-col[data-date="${laterDay}"] .fc-event`, { hasText: 'Client call' }).waitFor()
+    await page.getByRole('button', { name: 'Today' }).click()
     // the time block for the email task (its due date may be next week)
     const blocks = await invoke('listEvents', '2000-01-01', '2100-01-01')
     if (!blocks.some((e) => e.title === 'Proposal for Q4' && e.task_id)) throw new Error('task time block missing')

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -37,6 +37,7 @@ export function CalendarPage() {
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
   const [showTasks, setShowTasks] = useState(true)
   const [draft, setDraft] = useState<EventDraft | null>(null)
+  const calendarRef = useRef<FullCalendar>(null)
   const { data: events = [] } = useQuery({
     queryKey: ['events', range?.from, range?.to],
     queryFn: () => api.listEvents(range!.from, range!.to),
@@ -118,6 +119,13 @@ export function CalendarPage() {
     })
   }
 
+  // a saved event can start outside the visible range ("New event" late on a Sunday is next week): show it
+  const onSaved = (start: string) => {
+    const day = start.slice(0, 10)
+    if (range && day >= range.from && day < range.to) return
+    calendarRef.current?.getApi().gotoDate(day)
+  }
+
   return (
     <div className="flex h-full">
       <aside className="w-56 shrink-0 space-y-4 border-r border-line bg-panel p-3">
@@ -167,6 +175,7 @@ export function CalendarPage() {
       </aside>
       <div className="min-w-0 flex-1 overflow-auto bg-panel px-6 py-4">
         <FullCalendar
+          ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
           headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
@@ -187,12 +196,12 @@ export function CalendarPage() {
           select={onSelect}
         />
       </div>
-      {draft && <EventDialog draft={draft} onClose={() => setDraft(null)} />}
+      {draft && <EventDialog draft={draft} onClose={() => setDraft(null)} onSaved={onSaved} />}
     </div>
   )
 }
 
-function EventDialog({ draft, onClose }: { draft: EventDraft; onClose: () => void }) {
+function EventDialog({ draft, onClose, onSaved }: { draft: EventDraft; onClose: () => void; onSaved: (start: string) => void }) {
   const { data: calendars = [] } = useCalendars()
   const [d, setD] = useState(draft)
   const set = (p: Partial<EventDraft>) => setD({ ...d, ...p })
@@ -202,6 +211,7 @@ function EventDialog({ draft, onClose }: { draft: EventDraft; onClose: () => voi
     if (d.event_id) await api.updateEvent(d.event_id, input)
     else await api.createEvent(input)
     onClose()
+    onSaved(d.start)
   }
   const timeInput = (v: string, onChange: (v: string) => void, label: string) => (
     <input
