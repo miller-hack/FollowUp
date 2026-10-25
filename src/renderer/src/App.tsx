@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { TimePage } from '@/features/time/TimePage'
 import { GoalsPage } from '@/features/goals/GoalsPage'
 import { AutomationsPage } from '@/features/automations/AutomationsPage'
 import { InboxPage } from '@/features/mail/InboxPage'
-import { FollowUpsPage } from '@/features/mail/FollowUpsPage'
+import { ResizablePanel } from '@/components/Resizable'
 import { ComposeDialog } from '@/features/mail/Compose'
 import { CalendarPage } from '@/features/calendar/CalendarPage'
 import { DashboardsPage } from '@/features/dashboards/DashboardsPage'
@@ -114,9 +114,11 @@ export default function App() {
   // each region fails on its own: a bad value in one view never blanks the window (ADR-005)
   return (
     <div className="flex h-full">
-      <ErrorBoundary name="the sidebar" className="w-64">
-        <Sidebar />
-      </ErrorBoundary>
+      <ResizablePanel id="sidebar" initial={256} min={200} max={420} label="Resize the sidebar" className="h-full">
+        <ErrorBoundary name="the sidebar" className="h-full w-full">
+          <Sidebar />
+        </ErrorBoundary>
+      </ResizablePanel>
       <main className="min-w-0 flex-1">
         <ErrorBoundary name="this page" resetKey={pathname}>
         <Routes>
@@ -128,7 +130,8 @@ export default function App() {
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/automations" element={<AutomationsPage />} />
           <Route path="/inbox" element={<InboxPage />} />
-          <Route path="/followups" element={<FollowUpsPage />} />
+          <Route path="/followups" element={<Navigate to="/inbox?folder=followups" replace />} />
+          <Route path="/clients" element={<InboxPage view="clients" />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/dashboards" element={<DashboardsPage />} />
           <Route path="/dashboards/:id" element={<DashboardsPage />} />

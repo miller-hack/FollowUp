@@ -8,12 +8,12 @@ Open **Settings** (bottom of the sidebar).
 |---|---|---|---|
 | **Appearance** | Theme | System | Light, Dark, or follow Windows. |
 | | Week starts on | Monday | Calendars, the timesheet and "Next week" quick picks. |
-| **Accounts** | Sign in with Google / Microsoft, Email (app password), Calendar (CalDAV) | — | See [Email](06-email.md) and [Calendar](08-calendar.md). Each account has *Sync now* and *Remove*. |
+| **Accounts** | Add email account (from your address), Sign in with Google / Microsoft, Calendar (CalDAV) | — | See [Email](06-email.md) and [Calendar](08-calendar.md). Each account has *Sync now* and *Remove*. |
 | **Slack & Teams** | Connections | — | See [Slack & Teams](11-integrations.md). |
 | **AI** | Provider, model, keys, thinking effort, automatic email sorting | Claude, Opus 5.5, Medium, sorting off | See [AI](10-ai.md). |
-| **Email & follow-ups** | Check for new mail every | 2 minutes | 1, 2, 5, 15 or 30 minutes. |
+| **Email** | Check for new mail every | 2 minutes | 1, 2, 5, 15 or 30 minutes. |
 | | Load remote images in emails | Off | Remote images can tell senders when you opened an email. |
-| | Follow-ups that came due while this PC was off (more than a day) | Send them | *Send them* or *Skip them*. See [Follow-ups](07-follow-ups.md#behind-the-scenes). |
+| **Follow-up** | Who counts as "us", working days, "Reply needed" after, "Waiting on them" after, look back, daily reminder | your mailboxes' domains; Mon–Fri; 1 working day; 30 working hours; 14 days; on | See [Follow-up](07-follow-ups.md#settings). |
 | **Notifications** | Notify when tasks are due | On | Lead time for timed due dates (at the time, or 5, 15, 30 or 60 min before) and the time of day for date-only due dates (09:00). |
 | | Daily summary | On, 08:30 | "N due today · M overdue". |
 | **Window & startup** | Keep running in the system tray when the window is closed | Asked the first time you close | Keeps reminders, sync, automations and follow-ups running. |
@@ -25,6 +25,8 @@ Open **Settings** (bottom of the sidebar).
 | **Data & backups** | Data folder path + **Open folder** | `%APPDATA%\FollowUp` | |
 | | **Back up now** · **Export JSON** · recent backups | daily automatic backup | See below. |
 | **Keyboard shortcuts** | Reference list | — | See [Getting started](01-getting-started.md#keyboard-shortcuts). |
+
+**Panel and column widths** (sidebar, Inbox panes, task panel, List view and Clients columns) are remembered as you drag them. Double-click an edge to reset it.
 
 ## Backups
 
@@ -44,7 +46,7 @@ Open **Settings** (bottom of the sidebar).
 
 | Export | Where | Contains |
 |---|---|---|
-| **JSON** | Settings → Data & backups → **Export JSON** | Everything you created: spaces, folders, lists, statuses, tasks, tags, custom fields and values, checklists, comments, attachment records, dependencies, activity, sprints, time entries, goals, dashboards, reminders, automations, email templates, sequences, your local calendar and its events, Slack/Teams connections **without** their secrets, and settings **without** secrets. Not included: passwords, keys and tokens; synced mail; synced calendars (those come back from their servers). |
+| **JSON** | Settings → Data & backups → **Export JSON** | Everything you created: spaces, folders, lists, statuses, tasks, tags, custom fields and values, checklists, comments, attachment records, dependencies, activity, sprints, time entries, goals, dashboards, reminders, automations, email templates, clients (companies, people, stages, team, logged interactions), your local calendar and its events, Slack/Teams connections **without** their secrets, and settings **without** secrets. Not included: passwords, keys and tokens; synced mail; synced calendars (those come back from their servers). |
 | **CSV** | Time tracking → **Export CSV** | The shown week's time entries (Excel-friendly) |
 | **.ics** | Calendar → **Export .ics** | Events (−90 to +366 days) and open tasks with due dates |
 

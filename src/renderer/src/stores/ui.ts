@@ -15,6 +15,8 @@ export interface ComposeDraft {
   body: string
   /** message row id being replied to (threads the reply) */
   reply_to?: string | null
+  /** the saved draft being edited (replaced on save, removed on send) */
+  draft_id?: string | null
 }
 
 interface UiState {

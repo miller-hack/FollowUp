@@ -74,12 +74,14 @@ Each account shows its address and when it last synced (or the last error). It a
 
 ## How syncing works
 
-- **What:** the **INBOX** and your **Sent** folder (found by its standard "Sent" flag or common names).
-- **First sync:** imports the last *N* days (your choice; at most the 500 newest messages per folder) **quietly**. Old mail doesn't fire automations or stop follow-ups.
+- **What:** **every folder** on the server: Inbox, Drafts, Sent, Archive (Gmail: All Mail), Spam, Trash, and your own folders. Their roles come from the server's standard folder flags, or from their usual names in any language.
+- **Each message is stored once**, even when it's in several folders (Gmail labels). FollowUp records every folder it's in. A message that is already known is never downloaded again; only its new place is noted.
+- **First sync of a folder:** imports the last *N* days (your choice; at most the 500 newest messages per folder) **quietly**. Old mail doesn't fire automations.
 - **Afterwards:**
-  - FollowUp checks for new mail every **1, 2 (default), 5, 15 or 30 minutes** (**Settings → Email & follow-ups**), and whenever you click ⟳ in the Inbox;
+  - FollowUp checks for new mail every **1, 2 (default), 5, 15 or 30 minutes** (**Settings → Email**), and whenever you click ⟳ in the Inbox;
   - only new messages are downloaded;
   - each new incoming message raises an **"email received"** event.
+- **Moved or deleted elsewhere** (on your phone or webmail): the next sync notices. A message that is in no folder any more is removed from FollowUp too.
 - **Read and unread state** syncs both ways:
   - opening an unread thread marks it read after a moment, here and on the server;
   - **Mark unread** reverses it;
@@ -89,15 +91,16 @@ Each account shows its address and when it last synced (or the last error). It a
 
 ## Reading mail
 
-- **Folders:**
-  - **Inbox** (not Done);
-  - **Follow-ups** (threads with an active sequence);
-  - **Sent**, **Done** and **All mail**;
+- **The folder list** (left; drag its edge to resize):
+  - **Inbox** (not Done), **Follow-up** (see [Follow-up](07-follow-ups.md)) and **Clients** (see [Clients](15-clients.md));
+  - **Mail:** **Drafts**, **Sent**, **Archive**, **Spam** and **Trash** (when your server has them), FollowUp's **Done**, and **All mail** (everything except Spam and Trash);
+  - **Folders:** your own server folders, nested as on the server;
   - an account filter appears when you have several accounts.
 - **Search** looks through subjects, senders and message text.
 - **Thread list:**
   - an unread dot, people, message count, 📎 for attachments, date, subject and preview;
-  - chips for the AI category, an active follow-up ("Polite nudge · 1/2") and a linked task.
+  - chips for the AI category, the client company and its stage, "Reply needed" / "Waiting on them", and a linked task.
+- **Widths:** the folder list, the email list and the reading pane are resizable; drag their edges. FollowUp remembers the widths.
 - **AI categories:** with AI triage, chips at the top filter by category (*Needs action, Needs reply, FYI, Newsletter, Notification, Likely spam*). See [AI](10-ai.md#inbox-triage).
 - **Messages:**
   - The last message and any unread ones are expanded; click a header to expand others.
@@ -122,8 +125,12 @@ Email is the most common way attacks arrive, so FollowUp is strict:
 | **Reply / Reply all** | Opens Compose with the right recipients (yourself excluded), "Re:" subject and the last incoming message quoted. The reply is threaded correctly. |
 | **Forward** | Opens Compose with the message text and its headers. |
 | **Create task ▾** | Pick a list. Creates a task: title = subject without "Re:/Fwd:", description = sender and latest message. Task and thread are **linked**: the thread shows "Tasks: …" and the task shows the email. |
-| **Follow up ▾** | Start a follow-up sequence on this thread. See [Follow-ups](07-follow-ups.md). |
 | **Done** | Moves the thread out of the Inbox **in FollowUp only** (the server isn't changed). A new incoming message brings it back. |
+| **Archive** | Moves it to the server's Archive folder (Gmail: removes it from the Inbox, it stays in All Mail). |
+| **Spam** / **Not spam** | Moves it to the server's Spam folder, or back to the Inbox. Spam never shows in Follow-up. |
+| **Delete** / **Restore** | Moves it to Trash, or back to the Inbox. |
+| **Delete forever** | In Spam or Trash only, after a confirmation: removed from the server and from FollowUp. |
+| **Move ▾** | Any other folder on the server. |
 | **Mark unread** | Marks it unread here and on the server. |
 | **✨ AI** | Summarize, draft a reply, find tasks, sort this email. See [AI](10-ai.md). |
 
@@ -135,26 +142,27 @@ Email is the most common way attacks arrive, so FollowUp is strict:
   - **To / Cc:** addresses separated by commas; `Name <address>` works.
   - **Subject** and **Message:** plain text.
 - **Formatting:** paragraphs and line breaks are kept, lines starting with `>` are shown as a quote, and links become clickable.
-- **Templates:** **Insert template…** inserts a saved email template (manage them under **Follow-ups → Email templates**).
+- **Templates:** **Insert template…** inserts a saved email template.
+- **Save draft** keeps it in your server's Drafts folder, so it's on your phone too. Open it later from **Drafts** (or in its conversation) with **Edit draft**. Saving again replaces the earlier version; sending it removes the draft. **Discard** deletes it here and on the server.
 - **Sending:** `Ctrl+Enter` or **Send**. Closing a draft you've written in asks before discarding it.
 - **What happens after you press Send:**
   1. The email goes into an **outbox** and a background job sends it (up to 5 attempts, waiting 30 seconds, 2 minutes, 8 minutes and 32 minutes in between). While it's retrying, the thread shows *"Sending… (retrying: reason)"* with **Cancel**; if it finally fails, *"Couldn't send"* with **Retry**.
   2. As soon as the server accepts it, it's recorded as **sent**, so it can never be sent twice, even if a later step fails.
   3. A copy goes to your server's Sent folder when the provider doesn't do that itself (Gmail and Exchange do).
   4. It appears in the thread right away.
-- **Replying yourself stops that thread's follow-up sequence**, because a human is now in charge.
+- **Your reply takes the conversation out of Follow-up's "Reply needed"** (a teammate's reply does too).
 
 ## Behind the scenes
 
 - **Code:**
-  - `src/main/services/mail/`: `accounts.ts` (accounts, sign-in, sync), `store.ts` (parsing, threading, storage, attachments, sanitising), `send.ts` (outbox and sending), `sequences.ts` (follow-ups), `transport.ts` (IMAP/SMTP connections and readable errors);
+  - `src/main/services/mail/`: `accounts.ts` (accounts, sign-in, sync), `store.ts` (parsing, threading, storage, attachments, sanitising), `send.ts` (outbox and sending), `folders.ts` (every server folder, moves, deleting), `drafts.ts`, `followups.ts` (Follow-up), `detect.ts` (finding a provider's settings), `transport.ts` (IMAP/SMTP connections and readable errors);
   - `src/main/services/oauth.ts` (Google/Microsoft sign-in);
   - UI in `src/renderer/src/features/mail/`.
 - **Connections:** IMAP is handled by *imapflow*, SMTP by *Nodemailer*, and parsing by *mailparser*.
   - Remote servers always use TLS: implicit TLS (ports 993/465), or STARTTLS, which is required on 143/587.
   - Sign-in accounts authenticate with OAuth access tokens (XOAUTH2).
 - **Storage:**
-  - Messages go in `mail_messages`: sanitised HTML and plain text.
+  - Messages go in `mail_messages`: sanitised HTML and plain text. Where each message is on the server is in `mail_locations` (folder and UID), and the folders in `mail_folders`.
   - Threads go in `mail_threads`, with the *done* flag and the AI category.
   - Attachments are files under `mail\<account>\…` (`mail_attachments`).
   - Search uses the `mail_fts` full-text index.
@@ -165,10 +173,11 @@ Email is the most common way attacks arrive, so FollowUp is strict:
 - **Background jobs:**
   - `account_sync`: a sync;
   - `mail_send`: sending, 5 attempts;
-  - `mail_flags`: pushing read/unread to the server.
-- **After each newly synced incoming message** (in the same transaction):
-  - follow-up **reply detection** runs; it stops the thread's sequence, or marks it *bounced* for delivery failures;
-  - a **`mail.received`** event is raised for automations and AI triage.
+  - `mail_flags`: pushing read/unread to the server;
+  - `mail_move`, `mail_delete`, `draft_delete`: moves and deletions on the server (the screen changes at once; the server follows).
+- **After each sync:**
+  - each new incoming message in the Inbox raises a **`mail.received`** event for automations and AI triage;
+  - the Follow-up state of every conversation that changed is recomputed.
 - **Automated mail** (auto-replies, mailing lists, newsletters, bounces and `no-reply` senders, recognised from standard headers) is flagged. Automation rules never auto-reply to such mail.
 
 ## How it connects
@@ -176,13 +185,14 @@ Email is the most common way attacks arrive, so FollowUp is strict:
 | Feature | Connection |
 |---|---|
 | [Tasks](03-tasks.md) | Create task from email; linked emails in the task panel; "Email" from a task |
-| [Follow-ups](07-follow-ups.md) | Sequences reply in threads; stop on reply, bounce or your reply |
-| [Automations](09-automations.md) | Triggers *email arrives*, *sent email gets no reply*, *AI classifies an email*; email conditions; actions *send email*, *reply*, *create task from email*, *start sequence*, *mark read* |
+| [Follow-up](07-follow-ups.md) | Which conversations wait for a reply from you, or from them; follow-up drafts |
+| [Clients](15-clients.md) | Conversations show the client company; client history lists the emails |
+| [Automations](09-automations.md) | Triggers *email arrives*, *email needs follow-up*, *sent email gets no reply*, *AI classifies an email*; email conditions; actions *send email*, *reply*, *create task from email*, *mark read* |
 | [AI](10-ai.md) | Triage, summaries, reply drafts, extracting to-dos; the assistant can search and read threads and open drafts |
 | [Calendar](08-calendar.md) | *Sign in with Google* also adds Google Calendar |
 
 ## Examples
 
 - **Client asks for something:** open the email → **Create task ▾ → Clients**, set a due date in the panel, then reply *"On it — you'll have it Friday."* The task links to the thread for context.
-- **Proposal sent, waiting for an answer:** open your sent email → **Follow up ▾ → Polite nudge**. If they reply, the follow-up stops by itself.
+- **Proposal sent, waiting for an answer:** do nothing. If they haven't answered after 30 working hours, the email shows up in **Follow-up → Waiting on them** with a nudge ready to send.
 - **Inbox zero:** reply or create tasks for what matters, then press **Done** on each thread. The Inbox only shows what still needs you.

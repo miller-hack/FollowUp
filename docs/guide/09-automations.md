@@ -35,7 +35,7 @@ The editor only offers conditions, actions and variables that make sense for the
 
 Each trigger has a **context**: what the rule's actions can work on.
 - **task:** the rule runs on one task.
-- **email:** the rule runs on one email (the newest incoming message of the thread, or your sent message for *no reply*).
+- **email:** the rule runs on one email (the newest incoming message of the thread, or your sent message for *no reply* and for *waiting on them*).
 - **none:** neither (time or calendar based).
 
 ### When something changes (context: task)
@@ -64,7 +64,8 @@ Each trigger has a **context**: what the rule's actions can work on.
 | Trigger | Context | Fires | Options |
 |---|---|---|---|
 | **An email arrives** | email | For each **new incoming** message found by a sync (not during an account's first sync) | in any account, or a specific one |
-| **A sent email gets no reply** | email | Your latest message in a thread is older than *N* days and nobody has written since. Threads with an active follow-up are skipped. Fires once per sent message. | within 1, 2, 3, 5, 7 or 14 days |
+| **An email needs follow-up** | email | A conversation enters [Follow-up](07-follow-ups.md): someone has waited too long for your reply, or your email got no answer (waiting times and working days from Settings → Follow-up). Fires once per waiting email; conversations that were already waiting when you made the rule don't fire. | either way, *they're waiting for my reply*, or *I'm waiting for their answer* |
+| **A sent email gets no reply** | email | Your latest message in a thread is older than *N* days and nobody has written since. Fires once per sent message. | within 1, 2, 3, 5, 7 or 14 days |
 | **A calendar event is about to start** | none | *N* minutes before a timed event in any enabled calendar | 5, 10, 15, 30 or 60 minutes before |
 | **AI classifies a new email** | email | After AI triage sorts a new email (needs **Settings → AI → Sort new email automatically**) | any category, or Needs action / Needs reply / FYI / Newsletter / Notification / Likely spam |
 
@@ -117,7 +118,6 @@ Schedule and calendar triggers have no conditions.
 | **Ask AI (answer as comment)** | task | Sends your prompt plus the task's details (description, subtasks, checklists, recent comments, linked emails) to your AI provider. The answer is added as a comment by *ai*. Runs as its own background job (3 attempts), so a slow or failing AI call doesn't block the rule. |
 | **Create task from the email** | email | Like the Inbox button: subject → title, message → description, linked to the thread. |
 | **Reply to the email** | email | Queues a reply to the sender, in the thread ("Re: …"), with variables. |
-| **Start a follow-up sequence** | email | Enrolls the thread in a sequence (replacing any active one). |
 | **Mark the email as read** | email | Here and on the server. |
 | **Create task** | any | A new task in a chosen list with title (variables), due date (none, today, in 1/2/3/7 days) and priority. |
 | **Send me a notification** | any | An in-app and Windows notification, also mirrored to Slack or Teams if you set that up. |
@@ -225,9 +225,9 @@ sequenceDiagram
 1. **Client emails become tasks**
    - WHEN *An email arrives* · IF *Sender contains `@acme.com`*
    - THEN *Create task from the email* (list *Clients*) · *Send me a notification "New Acme request: {{email.subject}}"*
-2. **Chase unanswered proposals automatically**
-   - WHEN *A sent email gets no reply within 3 days* · IF *Subject contains `proposal`*
-   - THEN *Start a follow-up sequence "Polite nudge"*
+2. **Unanswered proposals become tasks**
+   - WHEN *An email needs follow-up* (*I'm waiting for their answer*) · IF *Subject contains `proposal`*
+   - THEN *Create task from the email* (list *Sales*) · *Send me a notification "No answer yet: {{email.subject}}"*
 3. **Out-of-office auto-reply (once per sender per day, never to robots)**
    - WHEN *An email arrives* · THEN *Reply to the email "Thanks {{email.from_name}}, I'm away until Monday and will reply then."*
    - Turn the rule on and off with its switch.
@@ -263,6 +263,8 @@ sequenceDiagram
 
 Automations are the glue between the other features:
 - they react to **tasks**, **time**, **email**, **AI triage** and **calendar** events;
-- they act on **tasks**, **notifications**, **email**, **follow-up sequences**, **Slack/Teams** and the **AI**.
+- they act on **tasks**, **notifications**, **email**, **Slack/Teams** and the **AI**.
+
+> **Coming from 1.0?** The action *Start a follow-up sequence* was removed in 1.1, together with sequences. Rules that used it were switched off at the update and say so in the editor: remove that action and switch the rule on again, or use the [Follow-up](07-follow-ups.md) view.
 
 To add your own triggers or actions in code, see [Customizing → automation triggers and actions](../developer/customizing.md#add-an-automation-trigger).

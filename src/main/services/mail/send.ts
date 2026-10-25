@@ -1,5 +1,5 @@
 import MailComposer from 'nodemailer/lib/mail-composer'
-import type { ComposeInput, MailAccountConfig, OutboxItem } from '@shared/mail'
+import type { ComposeInput, MailAccountConfig, MailAddress, OutboxItem } from '@shared/mail'
 import { all, get, now, run, uuid } from '../../db'
 import { enqueue, registerJobHandler } from '../jobs'
 import { authFor, getAccountFull } from './accounts'
@@ -30,17 +30,50 @@ export function textToHtml(text: string): string {
   return `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5">${html}</div>`
 }
 
-/** "Ana <ana@x.com>, bob@y.com" → valid list (throws on junk). */
-export function parseRecipients(text: string): string[] {
-  const parts = text
-    .split(/[,;]\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-  for (const p of parts) {
-    const addr = /<([^>]+)>/.exec(p)?.[1] ?? p
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) throw new Error(`“${p}” is not a valid email address`)
+/** A plain mailbox address: no spaces, quotes, brackets or separators that a mail parser could reinterpret. */
+const PLAIN_ADDRESS = /^[^\s@<>()",;:[\]\\]+@[^\s@<>()",;:[\]\\]+\.[^\s@<>()",;:[\]\\]+$/
+
+/**
+ * '"Lima, Ana" <ana@x.com>; bob@y.com' → [{ name: 'Lima, Ana', address: 'ana@x.com' }, { name: '', address: 'bob@y.com' }].
+ * Commas and semicolons inside quotes or <…> don't split. Throws on anything that isn't a plain address,
+ * so text from an email (a sender's display name) can never turn into an extra recipient.
+ */
+export function parseAddressList(text: string): MailAddress[] {
+  const parts: string[] = []
+  let cur = ''
+  let quoted = false
+  let angle = false
+  for (const c of text) {
+    if (c === '"' && !angle) quoted = !quoted
+    else if (c === '<' && !quoted) angle = true
+    else if (c === '>' && !quoted) angle = false
+    if ((c === ',' || c === ';') && !quoted && !angle) {
+      parts.push(cur)
+      cur = ''
+    } else cur += c
   }
-  return parts
+  parts.push(cur)
+  const out: MailAddress[] = []
+  for (const raw of parts.map((p) => p.trim()).filter(Boolean)) {
+    const m = /^(.*)<([^<>]*)>\s*$/.exec(raw)
+    const address = (m ? m[2] : raw).trim().toLowerCase()
+    const name = m ? m[1].trim().replace(/^"(.*)"$/, '$1').replace(/\\"/g, '"').trim() : ''
+    if (!PLAIN_ADDRESS.test(address)) throw new Error(`“${raw}” is not a valid email address`)
+    out.push({ name, address })
+  }
+  return out
+}
+
+/** "Ana <ana@x.com>, bob@y.com" → the same list, normalised (throws on junk). */
+export function parseRecipients(text: string): string[] {
+  return parseAddressList(text).map(formatAddress)
+}
+
+/** Display form, quoting names that contain characters with a meaning in address lists. */
+export function formatAddress(a: MailAddress): string {
+  if (!a.name) return a.address
+  const name = a.name.replace(/[\r\n"\\]/g, '').trim()
+  return /[,;<>()@:[\]]/.test(name) ? `"${name}" <${a.address}>` : `${name} <${a.address}>`
 }
 
 export interface QueueOptions {
@@ -125,10 +158,13 @@ async function sendOutbox({ payload }: { payload: { outboxId: string } }): Promi
   const acc = getAccountFull(o.account_id)
   if (!acc) throw new Error('Account was removed')
   const cfg = acc.config as MailAccountConfig
+  const to = parseAddressList(o.to_addrs)
+  const cc = o.cc_addrs ? parseAddressList(o.cc_addrs) : []
   const raw = await new MailComposer({
     from: { name: acc.name, address: acc.email },
-    to: o.to_addrs,
-    cc: o.cc_addrs || undefined,
+    // structured recipients: nodemailer never re-parses text that came from an email (display names)
+    to: to.map((a) => ({ name: a.name, address: a.address })),
+    cc: cc.length ? cc.map((a) => ({ name: a.name, address: a.address })) : undefined,
     subject: o.subject,
     text: o.body,
     html: textToHtml(o.body),
@@ -144,7 +180,8 @@ async function sendOutbox({ payload }: { payload: { outboxId: string } }): Promi
   const transport = smtpTransport(cfg.smtp, auth)
   try {
     await transport.sendMail({
-      envelope: { from: acc.email, to: [...parseRecipients(o.to_addrs), ...(o.cc_addrs ? parseRecipients(o.cc_addrs) : [])] },
+      // delivery goes to exactly these bare addresses
+      envelope: { from: acc.email, to: [...to, ...cc].map((a) => a.address) },
       raw
     })
   } catch (e) {

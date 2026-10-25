@@ -78,7 +78,8 @@ flowchart TB
 | `services/events.ts` | In-process domain events with automation depth |
 | `services/jobs.ts` | Persistent job queue with retry and backoff |
 | `services/automation.ts` | Rule storage, validation, matching, conditions, actions, time-based triggers, test and run |
-| `services/mail/*` | Accounts and sync (`accounts.ts`), parsing, threading and storage (`store.ts`), outbox (`send.ts`), follow-ups (`sequences.ts`), connections (`transport.ts`), secret codec (`secrets.ts`), sync orchestration and email→task (`index.ts`) |
+| `services/mail/*` | Accounts and sync (`accounts.ts`), every server folder, moves and deletes (`folders.ts`), drafts (`drafts.ts`), parsing, threading, storage and thread views (`store.ts`), outbox (`send.ts`), Follow-up rules (`followups.ts`) and drafts (`followupDraft.ts`), provider detection (`detect.ts`), templates (`templates.ts`), connections (`transport.ts`), secret codec (`secrets.ts`), sync orchestration and email→task (`index.ts`) |
+| `services/crm.ts`, `services/crmio.ts` | Clients: companies, people, stages, team, interactions, history, suggestions; Excel/CSV import and export |
 | `services/calendar.ts` | Local and CalDAV calendars, events, recurrence expansion, sync, .ics |
 | `services/ai/*` | Providers (`providers.ts`), assistant loop (`assistant.ts`), tools (`tools.ts`), inline features, triage, usage (`features.ts`) |
 | `services/integrations.ts` | Slack and Teams posting, Slack channel polling |
@@ -139,9 +140,11 @@ enqueue('mail_send', { outboxId }, { maxAttempts: 5, runAt })
 | `ai_triage` | `mail.received` (auto sort), *Sort inbox now* | 3 / 2 | Classify a thread, emit `mail.triaged` |
 | `account_sync` | Scheduler, *Sync now*, new accounts | 1 | Sync mail or CalDAV |
 | `caldav_sync` | Event edits | 5 | Push and pull a CalDAV account |
-| `mail_send` | Compose, sequences, automations | 5 | Send one outbox item |
+| `mail_send` | Compose, Follow-up, automations | 5 | Send one outbox item |
 | `mail_flags` | Mark read/unread | 5 | Push `\Seen` flags to IMAP |
-| `sequence_step` | `sequenceTick` | 3 | Send or reschedule one follow-up step |
+| `mail_move` | Archive, Spam, Delete, Restore, Move | 5 | Move messages on the server, then sync (on failure: undo and rescan) |
+| `mail_delete` | Delete forever | 5 | Delete messages on the server |
+| `draft_delete` | Saving over a draft, sending or discarding it | 5 | Delete the server copy, then the local one |
 | `integration_post` | Notifications mirror, *Post to Slack/Teams*, Share | 4 | Post to Slack or Teams |
 | `slack_poll` | `slackTick` (every 2 min) | 1 | Turn reacted Slack messages into tasks |
 
@@ -151,7 +154,7 @@ enqueue('mail_send', { outboxId }, { maxAttempts: 5, runAt })
 
 | Every | Work |
 |---|---|
-| 30 s (`tick`) | 1. `collectDue` (reminders, due notices, daily digest) → toasts and Slack/Teams mirroring<br>2. `automationTick` (due, overdue, schedule, no-reply and event triggers), `sequenceTick`, `slackTick`<br>3. mail sync when `syncIntervalMin` has passed; calendar sync every 15 min<br>4. `processJobs`, refresh tray and title |
+| 30 s (`tick`) | 1. `collectDue` (reminders, due notices, daily digest) → toasts and Slack/Teams mirroring<br>2. every 5 min `recomputeFollowUps` (the clock moves on); `automationTick` (due, overdue, schedule, no-reply, follow-up and event triggers), `followUpTick` (daily reminder), `slackTick`<br>3. mail sync when `syncIntervalMin` has passed; calendar sync every 15 min<br>4. `processJobs`, refresh tray and title |
 | 1 h | `autoBackup` (only if the last backup is over 24 h old) |
 | 24 h | `runMaintenance` + `compactDb` |
 | 3 s after start | `housekeeping()`: backup (forced before first-time data conversions), maintenance, compaction |

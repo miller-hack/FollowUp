@@ -43,6 +43,11 @@ const newsletterMail = [
   '--r1', 'Content-Type: image/png; name="logo.png"', 'Content-ID: <logo@studio>', 'Content-Disposition: inline; filename="logo.png"',
   'Content-Transfer-Encoding: base64', '', LOGO_PNG, '--r1--', ''
 ].join('\r\n')
+// a client question nobody answered for six days: "Reply needed" in Follow-up (ADR-015)
+const contractMail = [
+  'From: Kim Park <kim@globex.example>', 'To: me@example.com', 'Subject: Contract question', 'Message-ID: <c1@globex.example>',
+  `Date: ${new Date(Date.now() - 6 * 86_400_000).toUTCString()}`, 'Content-Type: text/plain; charset=utf-8', '', 'Can you confirm the payment terms in the contract?'
+].join('\r\n')
 const imap = hoodiecrow({
   plugins: ['ID', 'IDLE', 'UNSELECT', 'ENABLE', 'SPECIAL-USE', 'UIDPLUS', 'AUTH-PLAIN', 'NAMESPACE', 'MOVE', 'LITERALPLUS'],
   users: { me: { password: 'app-pass' } },
@@ -52,10 +57,19 @@ const imap = hoodiecrow({
         { raw: newsletterMail, flags: ['\\Seen'] },
         { raw: invoiceMail, flags: ['\\Seen'] },
         { raw: htmlMail, flags: [] },
-        { raw: textMail, flags: ['\\Seen'] }
+        { raw: textMail, flags: ['\\Seen'] },
+        { raw: contractMail, flags: ['\\Seen'] }
       ]
     },
-    '': { separator: '/', folders: { Sent: { 'special-use': '\\Sent', messages: [] } } }
+    '': {
+      separator: '/',
+      folders: {
+        Sent: { 'special-use': '\\Sent', messages: [] },
+        Drafts: { 'special-use': '\\Drafts', messages: [] },
+        Junk: { 'special-use': '\\Junk', messages: [] },
+        Trash: { 'special-use': '\\Trash', messages: [] }
+      }
+    }
   }
 })
 await new Promise((r) => imap.listen(IMAP_PORT, r))
@@ -493,22 +507,77 @@ try {
     await page.getByLabel('Message').waitFor({ state: 'detached' })
   })
 
-  await step('follow-up sequence', async () => {
-    await page.getByRole('link', { name: 'Follow-ups' }).click()
-    await page.getByRole('button', { name: 'New sequence' }).click()
-    await page.getByPlaceholder(/Sequence name/).fill('Proposal nudge')
-    await page.getByRole('button', { name: 'Save sequence' }).click()
-    await page.getByText('Proposal nudge').waitFor()
-    await page.getByRole('link', { name: /^Inbox/ }).click()
-    await page.getByRole('button', { name: /Proposal for Q4/ }).click()
-    await page.getByRole('button', { name: /Follow up/ }).click()
-    await page.getByRole('button', { name: /Proposal nudge/ }).click()
-    await page.getByText(/next email/).waitFor()
-    await shot('23-thread-followup')
-    await page.getByRole('link', { name: 'Follow-ups' }).click()
-    await page.getByRole('button', { name: 'In progress' }).click()
-    await page.getByText('ana@client.com').waitFor()
-    await shot('24-followups')
+  await step('follow-up in the inbox', async () => {
+    await page.locator('nav').getByRole('link', { name: /^Follow-up/ }).click()
+    await page.getByRole('button', { name: /Reply needed/ }).waitFor()
+    await page.getByRole('button', { name: /Contract question/ }).click()
+    await page.getByText('They’re waiting for your reply').waitFor()
+    // opened from Follow-up: a draft is ready (a template until AI is set up)
+    const body = page.getByLabel('Follow-up message')
+    await body.waitFor()
+    if (!(await page.getByLabel('Follow-up to').inputValue()).includes('kim@globex.example')) throw new Error('follow-up goes to the wrong person')
+    await body.fill('Hi Kim,\n\nYes: 30 days from the invoice date.\n\nBest regards')
+    await shot('23-followup')
+    delivered.length = 0
+    await page.getByRole('button', { name: 'Send follow-up' }).click()
+    await waitFor(async () => delivered.length === 1, 'follow-up delivery', 15_000)
+    if (!delivered[0].includes('In-Reply-To: <c1@globex.example>')) throw new Error('follow-up not threaded')
+    // answered: it leaves Follow-up
+    await waitFor(async () => (await invoke('getFollowUpCounts')).reply === 0, 'leaving Follow-up')
+  })
+
+  await step('clients from email, and a logged meeting', async () => {
+    await page.locator('nav').getByRole('link', { name: 'Clients' }).click()
+    await page.getByRole('button', { name: /From email/ }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByText('kim@globex.example').waitFor()
+    await dialog.getByLabel('New company name').first().waitFor()
+    // the Globex group (other senders form their own groups)
+    const group = dialog.locator('div.rounded-lg', { hasText: 'kim@globex.example' })
+    await group.getByLabel('New company name').fill('Globex Corporation')
+    await group.getByRole('button', { name: /^Add/ }).click()
+    await page.getByText(/Added to Globex Corporation/).waitFor()
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await page.getByRole('button', { name: 'Globex Corporation' }).click()
+    await page.getByRole('button', { name: /Log a call, meeting/ }).click()
+    const log = page.getByRole('dialog')
+    await log.getByRole('button', { name: /^Meeting$/ }).click()
+    await log.getByRole('button', { name: 'Online' }).click()
+    await log.getByLabel('Kim Park').check()
+    await log.locator('textarea').fill('Agreed on 30-day payment terms')
+    await log.getByRole('button', { name: 'Log it' }).click()
+    await page.getByText('Agreed on 30-day payment terms').waitFor()
+    // their email shows in the same history
+    await page.locator('aside').getByText('Contract question').first().waitFor()
+    await shot('24-clients')
+  })
+
+  await step('move an email to Spam on the server', async () => {
+    await page.locator('nav').getByRole('link', { name: /^Inbox/ }).click()
+    await page.getByRole('button', { name: /Weekly deals/ }).click()
+    // the reading pane's action (the folder list also has a Spam button)
+    const pane = page.locator('main main')
+    await pane.getByRole('heading', { name: 'Weekly deals' }).waitFor()
+    await pane.getByRole('button', { name: 'Spam', exact: true }).click()
+    await page.getByText('Moved to Spam').waitFor()
+    // on the server: the move job, then a sync records its new place
+    await waitFor(async () => (await invoke('listThreads', { folder: 'spam' })).some((t) => t.subject === 'Weekly deals'), 'the email in Spam', 20_000)
+    await page.locator('aside').getByRole('button', { name: 'Spam', exact: true }).click()
+    await page.getByRole('button', { name: /Weekly deals/ }).waitFor()
+    await shot('25a-spam')
+  })
+
+  await step('panels and columns can be resized', async () => {
+    const handle = page.getByRole('separator', { name: 'Resize the sidebar' })
+    const box = await handle.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + 200)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 80, box.y + 200, { steps: 5 })
+    await page.mouse.up()
+    const now = Number(await handle.getAttribute('aria-valuenow'))
+    if (now < 320) throw new Error(`dragging didn't resize the sidebar (width ${now})`)
+    await waitFor(async () => ((await invoke('getSettings')).ui.widths.sidebar ?? 0) >= 320, 'the sidebar width to be remembered')
+    await handle.dblclick()
   })
 
   await step('calendar', async () => {
@@ -544,7 +613,8 @@ try {
     await page.getByLabel('Trigger').selectOption('email_received')
     await page.getByRole('button', { name: 'Add condition' }).click()
     await page.getByRole('button', { name: 'Add action' }).click()
-    await page.getByLabel('Action', { exact: true }).selectOption('start_sequence')
+    await page.getByLabel('Trigger').selectOption('email_needs_follow_up')
+    await page.getByLabel('Action', { exact: true }).selectOption('reply_to_email')
     await page.getByText('{{email.from}}').count()
     await shot('26-email-automation')
     await page.getByRole('button', { name: 'Cancel' }).click()

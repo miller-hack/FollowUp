@@ -112,7 +112,8 @@ export function ResizeHandle({
         }
       }}
       className={cn(
-        'group relative z-10 w-1.5 shrink-0 cursor-col-resize touch-none select-none outline-none',
+        // positioned by the caller: 'absolute …' on an edge, or 'relative' between flex panels (cn doesn't merge conflicting classes)
+        'group z-10 w-1.5 shrink-0 cursor-col-resize touch-none select-none outline-none',
         'after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-accent/60 focus-visible:after:bg-accent',
         dragging && 'after:bg-accent',
         className
@@ -142,7 +143,7 @@ export function ResizablePanel({
   children: React.ReactNode
 }) {
   const [w, setW] = useWidth(id, initial, min, max)
-  const handle = <ResizeHandle width={w} onResize={setW} side={side} label={label} className={side === 'right' ? '-mr-1.5' : '-ml-1.5'} />
+  const handle = <ResizeHandle width={w} onResize={setW} side={side} label={label} className={side === 'right' ? 'relative -mr-1.5' : 'relative -ml-1.5'} />
   return (
     <>
       {side === 'left' && handle}

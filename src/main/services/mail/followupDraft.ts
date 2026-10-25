@@ -4,6 +4,7 @@ import { aiDraftFollowUp } from '../ai/features'
 import { getAccountFull } from './accounts'
 import { isOurs, ourIdentity } from './followups'
 import { personalize } from './templates'
+import { formatAddress } from './send'
 
 /**
  * A ready-to-edit follow-up email for a conversation in Follow-up (ADR-015).
@@ -50,7 +51,7 @@ export function followUpTarget(threadId: string): Omit<FollowUpDraft, 'body' | '
     cc = outside(parse(anchor.cc_addrs))
     if (!to.length) [to, cc] = [cc, []]
   }
-  const fmt = (list: MailAddress[]) => [...new Map(list.map((a) => [a.address, a])).values()].map((a) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
+  const fmt = (list: MailAddress[]) => [...new Map(list.map((a) => [a.address, a])).values()].map(formatAddress).join(', ')
   const subject = th.subject || anchor.subject
   return {
     kind,

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser'
 import type { EmailCategory } from '@shared/ai'
-import type { FollowUpKind, MailAddress, MailAttachment, MailMessage, MailThread, ThreadDetail, ThreadQuery } from '@shared/mail'
+import type { FolderRole, FollowUpKind, MailAddress, MailAttachment, MailMessage, MailThread, ThreadDetail, ThreadQuery } from '@shared/mail'
 import { all, get, marks, now, run, tx, uuid } from '../../db'
 import { ftsQuery } from '../tasks'
 import { DUE_SQL } from './followups'
@@ -697,8 +697,14 @@ export function getThread(id: string): ThreadDetail | null {
         ...msgs.map((m) => m.id)
       )
     : []
+  const locations = all<{ path: string; name: string; role: FolderRole | null }>(
+    `SELECT DISTINCT f.path, f.name, f.role FROM mail_locations l JOIN mail_messages m ON m.id = l.message_id
+     JOIN mail_folders f ON f.account_id = l.account_id AND f.path = l.folder WHERE m.thread_id = ? AND m.is_draft < 2 ORDER BY f.position, f.path`,
+    id
+  )
   return {
     ...thread,
+    locations,
     messages: msgs.map((m) => {
       const own = atts.filter((a) => a.message_id === m.id)
       const html = resolveInlineImages(m.body_html, own.filter((a) => a.inline))

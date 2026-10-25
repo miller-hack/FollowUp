@@ -37,7 +37,7 @@ function validateFollowUpSettings(f: Partial<import('@shared/mail').FollowUpSett
   if (f.nudgeAfterHours !== undefined && !(f.nudgeAfterHours >= 1 && f.nudgeAfterHours <= 24 * 30)) throw new Error('Choose between 1 hour and 30 days for “waiting on them”')
   if (f.workingDays !== undefined && (!Array.isArray(f.workingDays) || f.workingDays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)))
     throw new Error('Choose the working days')
-  if (f.companyDomains?.some((d) => !/^@?[a-z0-9-]+(.[a-z0-9-]+)+$/i.test(d.trim()))) throw new Error('Enter company domains like acme.com')
+  if (f.companyDomains?.some((d) => !/^@?[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(d.trim()))) throw new Error('Enter company domains like acme.com')
 }
 
 export const api: Api = {
@@ -291,7 +291,7 @@ export const api: Api = {
     return s
   },
   setUiWidth: (key, width) => {
-    if (!/^[w:.-]{1,80}$/.test(key)) throw new Error('Invalid layout key')
+    if (!/^[\w:.|-]{1,80}$/.test(key)) throw new Error('Invalid layout key')
     const widths = { ...meta.getSettings().ui.widths }
     if (width === null) delete widths[key]
     else if (Number.isFinite(width) && width >= 40 && width <= 4000) widths[key] = Math.round(width)

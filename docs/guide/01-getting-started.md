@@ -39,8 +39,9 @@ You can rename, reuse or delete all of it. Nothing is created again once a space
 | **＋** (`Ctrl+N`) | Quick add a task. |
 | **Timer bar** | Appears while a timer runs: shows the task and the elapsed time, with a stop button. |
 | **Home** | "My Work": overdue, today, the next 7 days, unscheduled and recently updated tasks. |
-| **Inbox** | Your email (with the unread count). |
-| **Follow-ups** | Follow-up sequences, people in progress and email templates. |
+| **Inbox** | Your email, with every server folder (with the unread count). |
+| **Follow-up** | Emails waiting for your reply, and your emails waiting for an answer (with the count). See [Follow-up](07-follow-ups.md). |
+| **Clients** | Companies, their people and the full history of every contact. See [Clients](15-clients.md). |
 | **Calendar** | Events from all your calendars plus task due dates. |
 | **Everything** | Every task from every space in one view. |
 | **Dashboards** | Charts and counters. |

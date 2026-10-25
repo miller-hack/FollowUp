@@ -324,6 +324,29 @@ describe('email automation loop protection', () => {
 
 // ---------------------------------------------------------------- M3 / M4: follow-ups
 
+describe('recipient lists', () => {
+  it('keeps names with commas together and never turns display text into a recipient', async () => {
+    const { parseAddressList, formatAddress } = await import('../src/main/services/mail/send')
+    expect(parseAddressList('"Lima, Ana" <Ana@Client.com>; bob@x.com')).toEqual([
+      { name: 'Lima, Ana', address: 'ana@client.com' },
+      { name: '', address: 'bob@x.com' }
+    ])
+    // crafted display names from a malicious sender (nodemailer addressparser advisories)
+    for (const evil of ['Ana (x, evil@attacker.example) <ana@client.com>', '"x;evil@attacker.example" <ana@client.com>', 'Ana <"ev>il"@attacker.example>']) {
+      let parsed: { address: string }[] = []
+      try {
+        parsed = parseAddressList(evil)
+      } catch {
+        parsed = []
+      }
+      expect(parsed.some((a) => a.address.includes('attacker'))).toBe(false)
+    }
+    expect(formatAddress({ name: 'Lima, Ana', address: 'ana@client.com' })).toBe('"Lima, Ana" <ana@client.com>')
+    // no header injection through a name: line breaks and quotes are dropped, the rest is quoted
+    expect(formatAddress({ name: 'Ana "the boss"\r\nBcc: x@y.z', address: 'ana@client.com' })).toBe('"Ana the bossBcc: x@y.z" <ana@client.com>')
+  })
+})
+
 describe('email addresses', () => {
   it('parses Name <address> recipients', async () => {
     const { parseAddress } = await import('../src/main/services/mail/templates')

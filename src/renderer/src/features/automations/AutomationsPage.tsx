@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { CheckCircle2, Copy, History, MinusCircle, MoreHorizontal, Pencil, Play, Plus, Sparkles, Trash2, XCircle, Zap } from 'lucide-react'
 import type { Automation, AutomationInput, AutomationRun } from '@shared/automation'
 import { api } from '@/lib/api'
-import { useAccounts, useFields, useIntegrations, useSequences, useTags, useTreeMaps } from '@/lib/hooks'
+import { useAccounts, useFields, useIntegrations, useTags, useTreeMaps } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import { toast, useUi } from '@/stores/ui'
 import { Button, Empty, IconButton, MenuItem, MenuSeparator, Modal, Popover } from '@/components/ui'
@@ -88,11 +88,10 @@ export function AutomationsPage() {
   const [editing, setEditing] = useState<Automation | AutomationInput | null>(null)
   const [history, setHistory] = useState<Automation | 'all' | null>(null)
   const { data: accounts = [] } = useAccounts()
-  const { data: sequences = [] } = useSequences()
   const { data: integrations = [] } = useIntegrations()
   const names: Names | null = useMemo(
-    () => (maps ? { maps, tags, fields, accounts, sequences, integrations } : null),
-    [maps, tags, fields, accounts, sequences, integrations]
+    () => (maps ? { maps, tags, fields, accounts, integrations } : null),
+    [maps, tags, fields, accounts, integrations]
   )
   if (!names) return null
 

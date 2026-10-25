@@ -32,7 +32,8 @@
 
 - plan work in **spaces, folders, lists and tasks**, viewed as a list, a Kanban board, a calendar or a Gantt chart;
 - turn **email into tasks** with one click;
-- let **follow-up sequences** chase people who haven't replied, stopping the moment they answer;
+- see every conversation **waiting for your reply** (or theirs) in **Follow-up**, with the follow-up email already written for you to approve;
+- keep **clients** in one table: companies, their people, stages, owners, and every email, call, chat and meeting;
 - automate routine work with a **no-code rules engine** ("when this happens, if that's true, do this");
 - ask a **built-in AI assistant** that can read and update your workspace, but only changes things after you approve.
 
@@ -78,11 +79,19 @@ It's **local-first**. Everything lives in one SQLite database on your own PC, an
 - Mail accounts:
   - Gmail and Google Calendar (sign in with Google)
   - Outlook / Microsoft 365 (sign in with Microsoft)
-  - iCloud, Yahoo, Zoho, Fastmail or any IMAP/SMTP mailbox with an app password
+  - iCloud, Yahoo, Zoho, Fastmail, your company's own mail server, or any IMAP/SMTP mailbox
+  - just type your address: FollowUp finds the settings (including Google Workspace and Microsoft 365 on your own domain)
+- **Every server folder:** Inbox, Drafts, Sent, Archive, Spam, Trash and your own folders, with archive, spam / not spam, delete, restore and move.
 - Threaded inbox with search, unread sync and safe reading: remote images and scripts are blocked, and dangerous attachments are never launched.
 - **Email ↔ task links:** create a task from a thread, see linked emails inside the task.
-- **Follow-up sequences:** "if nobody replies in 3 days, send this; 5 days later, send that." They respect send windows and daily limits, and stop on reply, bounce or your own reply.
+- **Follow-up:** *Reply needed* (someone waited a working day for you or your team) and *Waiting on them* (your email got no answer in 30 working hours). Weekends don't count, teammates' replies do. Open one and the follow-up is already written from the conversation; you approve and send.
+- **Drafts** saved on the server, so they're on your phone too.
 - Email templates and a compose window that threads replies correctly.
+
+**Clients**
+- An Excel-like table: each company with its people, designation, phone, work email, stage, who answers, who acts on their side, who owns them on your team, and the next action.
+- Log calls, WhatsApp chats, meetings (in person, at their office, online) and exhibitions with exactly who took part; every email is already in their history.
+- Add people from your email in one click; import and export Excel or CSV.
 
 **Calendar**
 - A built-in calendar plus two-way sync with CalDAV calendars (Google Calendar, iCloud, Fastmail, Nextcloud…).
@@ -91,13 +100,13 @@ It's **local-first**. Everything lives in one SQLite database on your own PC, an
 - Export everything as an `.ics` file.
 
 **Automations**
-- 15 triggers, including:
+- 16 triggers, including:
   - task created, status changed, due date approaching, overdue
-  - email received, no reply after N days, AI classified an email
+  - email received, email needs follow-up, no reply after N days, AI classified an email
   - calendar event starting soon, a schedule
-- 12 condition fields and 20 actions, including:
+- 12 condition fields and 19 actions, including:
   - change status, priority or due date; add a checklist; create tasks
-  - send or reply to email; start a follow-up sequence
+  - send or reply to email; create a task from an email
   - notify me; post to Slack or Teams; ask the AI
 - Template library, dry-run testing against a real task or email, run history and loop protection.
 
@@ -138,7 +147,8 @@ It's **local-first**. Everything lives in one SQLite database on your own PC, an
 | ![Inbox](docs/images/inbox.png) **Inbox** with AI triage, email → task links and follow-ups | ![AI assistant](docs/images/assistant.png) **AI assistant**: changes wait for your approval |
 | ![Automations](docs/images/automations.png) **Automations** in plain English | ![Automation editor](docs/images/automation-editor.png) **When / If / Then editor** with testing |
 | ![Calendar](docs/images/calendar.png) **Calendar** with events and task due dates | ![Dashboard](docs/images/dashboard.png) **Dashboards** |
-| ![Follow-ups](docs/images/followups.png) **Follow-up sequences** in progress | ![Dark mode](docs/images/dark.png) **Dark mode** |
+| ![Follow-up](docs/images/followups.png) **Follow-up**: who is waiting, with the reply ready | ![Clients](docs/images/clients.png) **Clients**: companies, people and their history |
+| ![Dark mode](docs/images/dark.png) **Dark mode** | |
 
 ## Download and install
 
@@ -157,10 +167,11 @@ It's **local-first**. Everything lives in one SQLite database on your own PC, an
 1. **Look around:** FollowUp opens with a small example workspace (*Personal → Getting Started* and *Work → Projects → Website Launch*). Open a task, drag a card on the **Board**, try the **Gantt** tab.
 2. **Make it yours:** in the sidebar, use **＋** next to *Spaces* or the **⋯** menus to create spaces, folders and lists. Edit statuses and custom fields from a space's **⋯ → Statuses / Custom fields**.
 3. **Capture work fast:** `Ctrl+N` anywhere opens Quick add; `Ctrl+K` searches everything.
-4. **Connect email (optional):** go to **Settings → Accounts → Sign in with Google / Microsoft**, or use **Email (app password)** for any IMAP mailbox. Your inbox appears under **Inbox**.
-5. **Never forget a reply:** in **Follow-ups**, create a sequence. Then open a sent email and click **Follow up**.
-6. **Automate:** open **Automations** and start from a template, such as *Escalate overdue tasks*.
-7. **Add AI (optional):** in **Settings → AI**, paste an Anthropic or OpenAI API key, or point FollowUp at Ollama. Then press `Ctrl+J`.
+4. **Connect email (optional):** go to **Settings → Accounts → Add email account** and type your address; FollowUp finds the right settings. Your mail appears under **Inbox**.
+5. **Never forget a reply:** **Follow-up** lists conversations waiting for your answer, or theirs. Open one, check the ready-made follow-up, and send it.
+6. **Know your clients:** in **Clients**, click **From email** to add the people you correspond with, then log your calls and meetings.
+7. **Automate:** open **Automations** and start from a template, such as *Escalate overdue tasks*.
+8. **Add AI (optional):** in **Settings → AI**, paste an Anthropic or OpenAI API key, or point FollowUp at Ollama. Then press `Ctrl+J`.
 
 When you close the window, FollowUp asks whether it should keep running in the background (so reminders and follow-ups still work) or quit. You can always reopen it from the Start menu, the desktop icon or the tray icon next to the clock.
 
@@ -176,13 +187,14 @@ The **[user guide](docs/README.md)** explains every screen and option, the logic
 | [Views](docs/guide/04-views.md) | List, Board, Calendar, Gantt, filters, Home, bulk edit |
 | [Planning](docs/guide/05-planning.md) | Time tracking, sprints, goals, dashboards, notifications |
 | [Email](docs/guide/06-email.md) | Accounts, sync, safe reading, compose, email ↔ task |
-| [Follow-ups](docs/guide/07-follow-ups.md) | Sequences, send windows, stop rules, templates |
+| [Follow-up](docs/guide/07-follow-ups.md) | Reply needed, waiting on them, AI-written follow-ups |
 | [Calendar](docs/guide/08-calendar.md) | Calendars, CalDAV sync, block time, .ics export |
 | [Automations](docs/guide/09-automations.md) | Triggers, conditions, actions, variables, recipes |
 | [AI](docs/guide/10-ai.md) | Providers, assistant, inline AI, triage, privacy, cost |
 | [Slack & Teams](docs/guide/11-integrations.md) | Webhooks, Slack app, reaction → task |
 | [Settings & data](docs/guide/12-settings-and-data.md) | Every setting, backups, export, security model |
 | [Scenarios](docs/guide/13-scenarios.md) | End-to-end workflows for real situations |
+| [Clients](docs/guide/15-clients.md) | Companies, people, stages, logged calls and meetings, import/export |
 | [Troubleshooting](docs/guide/14-troubleshooting.md) | Common problems and fixes |
 
 For developers there are pages on [architecture](docs/developer/architecture.md), the [data model](docs/developer/data-model.md), [customizing and extending](docs/developer/customizing.md), [testing](docs/developer/testing.md) and [building and releasing](docs/developer/building-and-releasing.md). The [design decisions](docs/decisions/README.md) record why things are built the way they are.

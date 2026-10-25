@@ -6,6 +6,7 @@ import {
   TEMPLATE_VARS,
   TRIGGER_CONTEXT,
   actionAllowed,
+  RETIRED_ACTIONS,
   type TriggerContext,
   type Action,
   type ActionType,
@@ -21,7 +22,7 @@ import {
 import type { Priority, TaskRef } from '@shared/types'
 import { EMAIL_CATEGORY_LABEL, type EmailCategory } from '@shared/ai'
 import { api } from '@/lib/api'
-import { useAccounts, useFields, useIntegrations, useSequences, useTags, useTreeMaps } from '@/lib/hooks'
+import { useAccounts, useFields, useIntegrations, useTags, useTreeMaps } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import { Button, IconButton, Input, Modal } from '@/components/ui'
 import { ListSelect, LocationSelect, PrioritySelect, Select, StatusNameSelect, TagSelect } from '@/components/selects'
@@ -129,12 +130,22 @@ function TriggerEditor({ trigger, onChange }: { trigger: Trigger; onChange: (t: 
           ))}
         </optgroup>
         <optgroup label="Email & calendar">
-          {(['email_received', 'email_no_reply', 'event_starts', 'email_triaged'] as TriggerType[]).map((t) => (
+          {(['email_received', 'email_needs_follow_up', 'email_no_reply', 'event_starts', 'email_triaged'] as TriggerType[]).map((t) => (
             <option key={t} value={t}>{TRIGGER_LABELS[t]}</option>
           ))}
         </optgroup>
       </Select>
       {trigger.type === 'email_received' && <AccountSelect value={trigger.account_id} onChange={(account_id) => set({ account_id })} />}
+      {trigger.type === 'email_needs_follow_up' && (
+        <>
+          <Select value={trigger.kind ?? ''} onChange={(e) => set({ kind: (e.target.value || null) as 'reply' | 'nudge' | null })} aria-label="Which follow-ups">
+            <option value="">either way</option>
+            <option value="reply">they're waiting for my reply</option>
+            <option value="nudge">I'm waiting for their answer</option>
+          </Select>
+          <span className="w-full text-xs text-muted">Fires once per conversation when it enters Follow-up (waiting times and working days are set in Settings → Email &amp; follow-up).</span>
+        </>
+      )}
       {trigger.type === 'email_no_reply' && (
         <Select value={trigger.days} onChange={(e) => set({ days: Number(e.target.value) })} aria-label="Days without reply">
           {[1, 2, 3, 5, 7, 14].map((d) => (
@@ -505,7 +516,7 @@ function ActionFields({ a, onChange }: { a: Action; onChange: (a: Action) => voi
     case 'reply_to_email':
       return <TextWithVars multiline value={a.body} onChange={(body) => set({ body })} placeholder="Reply text" />
     case 'start_sequence':
-      return <SequenceSelect value={a.sequence_id} onChange={(sequence_id) => set({ sequence_id })} />
+      return <span className="text-xs text-danger">Sequences were replaced by Follow-up in FollowUp 1.1. Remove this action.</span>
     case 'mark_email_read':
       return <span className="text-xs text-muted">Marks the thread read here and on the server.</span>
     case 'ai_prompt':
@@ -532,18 +543,6 @@ function IntegrationSelect({ value, onChange }: { value: string; onChange: (v: s
       <option value="" disabled>{integrations.length ? 'Choose where to post…' : 'No Slack / Teams connected — add one in Settings'}</option>
       {integrations.map((i) => (
         <option key={i.id} value={i.id}>{i.name}</option>
-      ))}
-    </Select>
-  )
-}
-
-function SequenceSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { data: sequences = [] } = useSequences()
-  return (
-    <Select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="" disabled>{sequences.length ? 'Choose a sequence…' : 'No sequences yet — create one under Follow-ups'}</option>
-      {sequences.map((s) => (
-        <option key={s.id} value={s.id}>{s.name} ({s.steps.length} emails)</option>
       ))}
     </Select>
   )
@@ -582,7 +581,7 @@ export function AutomationEditor({ initial, onClose }: { initial: Automation | A
     setResult(null)
     setError(null)
   }
-  const actionTypes = (Object.keys(ACTION_LABELS) as ActionType[]).filter((t) => actionAllowed(t, kind))
+  const actionTypes = (Object.keys(ACTION_LABELS) as ActionType[]).filter((t) => actionAllowed(t, kind) && !RETIRED_ACTIONS.includes(t))
   const target = kind === 'task' ? (testTask?.id ?? null) : kind === 'email' ? testThread : null
   const firstActionFor = (k: TriggerContext): ActionType => (k === 'task' ? 'add_comment' : k === 'email' ? 'create_task_from_email' : 'notify')
 

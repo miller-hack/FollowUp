@@ -296,8 +296,8 @@ interface InteractionRow extends Omit<Interaction, 'person_ids' | 'member_ids'> 
 function loadInteractions(rows: InteractionRow[]): Interaction[] {
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const ppl = all<{ interaction_id: string; person_id: string }>(`SELECT interaction_id, person_id FROM interaction_people WHERE interaction_id IN (${marks(ids.length)})`, ...ids)
-  const mem = all<{ interaction_id: string; member_id: string }>(`SELECT interaction_id, member_id FROM interaction_members WHERE interaction_id IN (${marks(ids.length)})`, ...ids)
+  const ppl = all<{ interaction_id: string; person_id: string }>(`SELECT interaction_id, person_id FROM interaction_people WHERE interaction_id IN (${marks(ids.length)}) ORDER BY rowid`, ...ids)
+  const mem = all<{ interaction_id: string; member_id: string }>(`SELECT interaction_id, member_id FROM interaction_members WHERE interaction_id IN (${marks(ids.length)}) ORDER BY rowid`, ...ids)
   return rows.map((r) => ({
     ...r,
     person_ids: ppl.filter((p) => p.interaction_id === r.id).map((p) => p.person_id),

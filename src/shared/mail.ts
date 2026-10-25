@@ -250,6 +250,8 @@ export interface MailThread {
 
 export interface ThreadDetail extends MailThread {
   messages: MailMessage[]
+  /** server folders the conversation's messages are in */
+  locations: { path: string; name: string; role: FolderRole | null }[]
 }
 
 /**

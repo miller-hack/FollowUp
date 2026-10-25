@@ -11,10 +11,7 @@ Each scenario is a complete, realistic setup: what to create, which settings and
 **Set up once**
 1. **Space *Clients*.** One list per client (*Acme*, *Northwind*, …) plus a list *Admin*. Add a custom field *Billing* (Dropdown: Hourly / Fixed) and a tag `waiting`.
 2. **Connect your email** (Settings → Accounts).
-3. **Follow-up sequence *Invoice reminder*:**
-   - 7 days: *"Hi {{first_name}}, a friendly reminder about the invoice ({{subject}})."*
-   - 7 days: *"Second reminder…"*
-   - 14 days: *"Final reminder…"*
+3. **Clients:** add each client company (or **From email**) with the person who pays invoices ticked as **Acts for them**.
 4. **Automations:**
    - **Client emails → tasks.** WHEN *An email arrives* · IF *Sender contains `@acme.example`* · THEN *Create task from the email* (list *Acme*) · *Send me a notification "Acme: {{email.subject}}"*. Duplicate it for each client.
    - **Due tomorrow.** Use the template *Heads-up the day before*, scoped to space *Clients*.
@@ -25,7 +22,7 @@ Each scenario is a complete, realistic setup: what to create, which settings and
 
 **Every week or month**
 - **Time tracking → Export CSV** for each week of the billing period. Filter by List (client) in Excel to build the invoice.
-- Send the invoice email, then **Follow up ▾ → Invoice reminder** on it. When the client replies or pays and writes back, the reminders stop by themselves.
+- Send the invoice email. If the client doesn't answer within 30 working hours, it appears in **Follow-up → Waiting on them** with a polite reminder ready; send it with one click, or snooze it until the payment date.
 
 ---
 
@@ -34,23 +31,19 @@ Each scenario is a complete, realistic setup: what to create, which settings and
 **Situation:** you send proposals and quotes, and deals die when nobody follows up.
 
 **Set up once**
-1. **Sequence *Proposal nudge*** (weekdays 09:00–17:00, daily cap 30):
-   - 3 days: *"Hi {{first_name}}, just bringing this back to the top of your inbox. Any questions on the proposal?"*
-   - 5 days: *"Should I check back next month instead?"*
-2. **Automation *Chase proposals*:**
-   - WHEN *A sent email gets no reply within 3 days*
-   - IF *Subject contains `proposal`*
-   - THEN *Start a follow-up sequence "Proposal nudge"*
-3. **AI triage** (optional): Settings → AI → **Sort new email automatically**. Then an automation:
+1. **Settings → Follow-up:** your working days, and your company's domains so your colleagues' replies count.
+2. **Clients:** import your lead list (Excel), or add people **From email**. Set each company's **stage** and **our owner**.
+3. **AI** (Settings → AI) so follow-ups are written for you from each conversation.
+4. **AI triage** (optional): Settings → AI → **Sort new email automatically**. Then an automation:
    - WHEN *AI classifies a new email as "Needs reply"*
    - THEN *Create task from the email* (list *Deals*) · *Send me a notification*
 
 **What happens**
-- You send *"Proposal for the website redesign"*.
-- Three days later, with no answer, FollowUp enrolls the thread.
-- The next weekday morning, inside the window, it replies in the same thread with your nudge.
-- If Jordan replies at any point, the sequence stops and the reply lands in your Inbox, labelled *Needs reply*. A task appears for it.
-- **Inbox → Follow-ups** shows every deal currently being chased.
+- You send *"Proposal for the website redesign"* to Jordan at Northwind.
+- After 30 working hours without an answer, it appears in **Follow-up → Waiting on them**, marked *Northwind · Proposal sent*.
+- You open it: the AI has written a short follow-up that mentions your call last Thursday (logged in Clients). You change one sentence and click **Send follow-up**.
+- When Jordan replies, the conversation leaves Follow-up. If you don't answer him within a working day, it comes back under **Reply needed**.
+- In **Clients**, Northwind's history shows the proposal, the follow-up, Jordan's answer and your logged call, and **Responds: Yes** next to Jordan.
 
 ---
 

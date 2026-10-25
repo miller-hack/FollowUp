@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ListTree, Plus, Trash2, X } from 'lucide-react'
 import { addDays, isAppDate, localDate } from '@shared/dates'
@@ -6,6 +6,7 @@ import { sortTasks } from '@shared/sort'
 import { PRIORITIES, type CustomField, type Location, type Priority, type SortBy, type Status, type Task, type ViewConfig } from '@shared/types'
 import { api } from '@/lib/api'
 import { optimisticPatch, useRunningTimer, useTreeMaps } from '@/lib/hooks'
+import { ResizeHandle, useWidths } from '@/components/Resizable'
 import { cn, formatMinutes, PRIORITY_META } from '@/lib/utils'
 import { TimerButton } from '../time/timer'
 import { useUi } from '@/stores/ui'
@@ -139,22 +140,36 @@ export function ListView({ tasks, config, onConfig, statuses, fields, location, 
     initialRect: { width: 1200, height: 800 }
   })
 
+  // resizable columns: widths remembered per column (ADR-011 list view; drag the header edge)
+  const { widths: W, load: loadWidths, set: setWidth } = useWidths()
+  useEffect(() => void loadWidths(), [loadWidths])
+
   if (!maps) return null
   const showList = location?.kind !== 'list'
   const visibleFields = fields.filter((f) => !config.hiddenFields.includes(f.id))
+  const colW = (key: string, def: number) => Math.min(900, Math.max(60, W[`list.col.${key}`] ?? def))
+  const nameW = W['list.col.name']
   const gridCols = [
     '28px',
-    'minmax(260px, 1fr)',
-    showList ? '140px' : null,
-    '130px',
-    '110px',
-    '80px',
-    '130px',
-    '170px',
-    ...visibleFields.map(() => '140px')
+    nameW ? `${colW('name', 320)}px` : 'minmax(260px, 1fr)',
+    showList ? `${colW('list', 140)}px` : null,
+    `${colW('status', 130)}px`,
+    `${colW('due', 110)}px`,
+    `${colW('priority', 80)}px`,
+    `${colW('time', 130)}px`,
+    `${colW('tags', 170)}px`,
+    ...visibleFields.map((f) => `${colW(`field.${f.id}`, 140)}px`)
   ]
     .filter(Boolean)
     .join(' ')
+  const resizer = (key: string, def: number, label: string) => (
+    <ResizeHandle
+      width={colW(key, def)}
+      onResize={(w, persist) => setWidth(`list.col.${key}`, w === null ? null : Math.min(900, Math.max(60, Math.round(w))), persist)}
+      label={`Resize the ${label} column`}
+      className="absolute top-0 -right-[3px] h-full"
+    />
+  )
 
   const sortHeader = (label: string, by: SortBy) => (
     <button
@@ -332,15 +347,18 @@ export function ListView({ tasks, config, onConfig, statuses, fields, location, 
               onChange={(e) => setSelected(e.target.checked ? new Set(tasks.map((t) => t.id)) : new Set())}
             />
           </div>
-          <div className="pl-6">{sortHeader('Name', 'title')}</div>
-          {showList && <div>List</div>}
-          <div>Status</div>
-          <div>{sortHeader('Due', 'due_date')}</div>
-          <div>{sortHeader('Priority', 'priority')}</div>
-          <div>Time</div>
-          <div>Tags</div>
+          <div className="relative h-full pl-6 leading-8">{sortHeader('Name', 'title')}{resizer('name', 320, 'Name')}</div>
+          {showList && <div className="relative h-full leading-8">List{resizer('list', 140, 'List')}</div>}
+          <div className="relative h-full leading-8">Status{resizer('status', 130, 'Status')}</div>
+          <div className="relative h-full leading-8">{sortHeader('Due', 'due_date')}{resizer('due', 110, 'Due')}</div>
+          <div className="relative h-full leading-8">{sortHeader('Priority', 'priority')}{resizer('priority', 80, 'Priority')}</div>
+          <div className="relative h-full leading-8">Time{resizer('time', 130, 'Time')}</div>
+          <div className="relative h-full leading-8">Tags{resizer('tags', 170, 'Tags')}</div>
           {visibleFields.map((f) => (
-            <div key={f.id} className="truncate pr-2">{f.name}</div>
+            <div key={f.id} className="relative h-full truncate pr-2 leading-8">
+              {f.name}
+              {resizer(`field.${f.id}`, 140, f.name)}
+            </div>
           ))}
         </div>
 

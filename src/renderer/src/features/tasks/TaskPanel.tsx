@@ -13,6 +13,7 @@ import { cn, formatBytes, formatDue, formatMinutes, parseDuration } from '@/lib/
 import { toast, useUi } from '@/stores/ui'
 import { Button, Dot, IconButton, MenuItem, Popover } from '@/components/ui'
 import { RichEditor } from './RichEditor'
+import { ResizeHandle, useWidth } from '@/components/Resizable'
 import { DateField, FieldEditor, ListPicker, PriorityPicker, StatusCircle, StatusPicker, TagList, TagPicker } from './pickers'
 import { TaskSearch } from './TaskSearch'
 import { TimerButton } from '../time/timer'
@@ -60,6 +61,7 @@ export function TaskPanel() {
   const id = useUi((s) => s.openTaskId)
   const openTask = useUi((s) => s.openTask)
   const { data: task, isFetched } = useTask(id)
+  const [panelWidth, setPanelWidth] = useWidth('taskPanel', 720, 420, 1200)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,7 +80,8 @@ export function TaskPanel() {
   return (
     <>
       <div className="fixed inset-0 z-20 bg-black/20" onClick={() => openTask(null)} />
-      <aside className="fixed top-0 right-0 bottom-0 z-30 flex w-[min(720px,92vw)] flex-col border-l border-line bg-panel shadow-2xl">
+      <aside className="fixed top-0 right-0 bottom-0 z-30 flex max-w-[96vw] flex-col border-l border-line bg-panel shadow-2xl" style={{ width: panelWidth }}>
+        <ResizeHandle width={panelWidth} onResize={setPanelWidth} side="left" label="Resize the task panel" className="absolute top-0 -left-[3px] h-full" />
         <TaskBody key={task.id} task={task} />
       </aside>
     </>

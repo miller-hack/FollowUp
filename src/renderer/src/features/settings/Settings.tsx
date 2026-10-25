@@ -13,6 +13,7 @@ import { AiSection } from './AiSettings'
 import { IntegrationsSection } from './Integrations'
 import { UpdatesSection } from './Updates'
 import { AccountsSection } from './Accounts'
+import { FollowUpSettingsEditor } from './FollowUpSettings'
 
 function Section({ id, title, description, children }: { id?: string; title: string; description?: string; children: ReactNode }) {
   return (
@@ -69,7 +70,7 @@ export function Settings() {
           <AiSection />
         </Section>
 
-        <Section title="Email & follow-ups">
+        <Section title="Email">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span>Check for new mail every</span>
@@ -89,18 +90,11 @@ export function Settings() {
               checked={settings.mail.loadRemoteImages}
               onChange={(loadRemoteImages) => set({ mail: { ...settings.mail, loadRemoteImages } })}
             />
-            <div className="flex items-center justify-between">
-              <span>
-                Follow-ups that came due while this PC was off
-                <span className="block text-xs text-muted">for more than a day</span>
-              </span>
-              <Segmented
-                value={settings.followups.missedPolicy}
-                options={[['send', 'Send them'], ['skip', 'Skip them']]}
-                onChange={(missedPolicy) => set({ followups: { missedPolicy } })}
-              />
-            </div>
           </div>
+        </Section>
+
+        <Section id="followup" title="Follow-up" description="Which conversations show up in Inbox → Follow-up, and when.">
+          <FollowUpSettingsEditor settings={settings} set={set} />
         </Section>
 
         <Section title="Notifications" description="Windows notifications for due dates, reminders and a daily summary.">

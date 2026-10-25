@@ -8,7 +8,12 @@ import { toast, useUi, type ComposeDraft } from '@/stores/ui'
 import { Button, Input, Modal } from '@/components/ui'
 import { Select } from '@/components/selects'
 
-const fmtAddr = (a: { name: string; address: string }) => (a.name && a.name !== 'me' ? `${a.name} <${a.address}>` : a.address)
+/** Quotes names with commas, brackets etc. so they can't be read as extra recipients. */
+const fmtAddr = (a: { name: string; address: string }) => {
+  const name = a.name && a.name !== 'me' ? a.name.replace(/[\r\n"\\]/g, '').trim() : ''
+  if (!name) return a.address
+  return /[,;<>()@:[\]]/.test(name) ? `"${name}" <${a.address}>` : `${name} <${a.address}>`
+}
 
 function quote(m: MailMessage): string {
   const lines = (m.body_text || '').trim().split(/\r?\n/).slice(0, 60)
@@ -52,6 +57,7 @@ export function ComposeDialog() {
   const [d, setD] = useState<ComposeDraft | null>(draft)
   const [showCc, setShowCc] = useState(false)
   const [sending, setSending] = useState(false)
+  const [saving, setSaving] = useState(false)
   // Ctrl+Enter and the button can both fire before React re-renders: guard with a ref (ADR-004)
   const sendingRef = useRef(false)
 
@@ -72,7 +78,7 @@ export function ComposeDialog() {
     sendingRef.current = true
     setSending(true)
     try {
-      await api.sendEmail({ account_id: accountId, to: d.to, cc: d.cc, subject: d.subject, body: d.body, reply_to: d.reply_to })
+      await api.sendEmail({ account_id: accountId, to: d.to, cc: d.cc, subject: d.subject, body: d.body, reply_to: d.reply_to, draft_id: d.draft_id })
       toast('Sending…', 'success')
       close()
     } finally {
@@ -83,7 +89,7 @@ export function ComposeDialog() {
 
   return (
     <Modal
-      title={d.reply_to ? 'Reply' : 'New email'}
+      title={d.draft_id ? 'Draft' : d.reply_to ? 'Reply' : 'New email'}
       onClose={close}
       confirmDiscard={dirty}
       width={680}
@@ -106,6 +112,23 @@ export function ComposeDialog() {
             </Select>
           )}
           <Button variant="ghost" onClick={close}>Discard</Button>
+          <Button
+            variant="ghost"
+            disabled={saving || !accountId || (!d.to.trim() && !d.body.trim())}
+            onClick={async () => {
+              if (!accountId) return
+              setSaving(true)
+              try {
+                await api.saveDraft({ account_id: accountId, to: d.to, cc: d.cc, subject: d.subject, body: d.body, reply_to: d.reply_to }, d.draft_id)
+                toast('Saved in Drafts', 'success')
+                close()
+              } finally {
+                setSaving(false)
+              }
+            }}
+          >
+            Save draft
+          </Button>
           <Button variant="primary" onClick={send} disabled={sending || !d.to.trim() || !accountId}>
             <Send size={14} /> Send
           </Button>

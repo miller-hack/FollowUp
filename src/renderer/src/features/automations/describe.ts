@@ -1,6 +1,6 @@
 import type { Action, Condition, Trigger } from '@shared/automation'
 import type { CustomField, Location, Tag } from '@shared/types'
-import type { Account, Sequence } from '@shared/mail'
+import type { Account } from '@shared/mail'
 import type { Integration } from '@shared/integrations'
 import { EMAIL_CATEGORY_LABEL, type EmailCategory } from '@shared/ai'
 import type { TreeMaps } from '@/lib/hooks'
@@ -11,7 +11,6 @@ export interface Names {
   tags: Tag[]
   fields: CustomField[]
   accounts?: Account[]
-  sequences?: Sequence[]
   integrations?: Integration[]
 }
 
@@ -34,6 +33,7 @@ export const TRIGGER_LABELS: Record<Trigger['type'], string> = {
   schedule: 'On a schedule',
   email_received: 'An email arrives',
   email_no_reply: 'A sent email gets no reply',
+  email_needs_follow_up: 'An email needs follow-up',
   event_starts: 'A calendar event is about to start',
   email_triaged: 'AI classifies a new email'
 }
@@ -55,7 +55,7 @@ export const ACTION_LABELS: Record<Action['type'], string> = {
   send_email: 'Send an email',
   create_task_from_email: 'Create task from the email',
   reply_to_email: 'Reply to the email',
-  start_sequence: 'Start a follow-up sequence',
+  start_sequence: 'Start a follow-up sequence (removed in 1.1)',
   mark_email_read: 'Mark the email as read',
   ai_prompt: 'Ask AI (answer as comment)',
   post_message: 'Post to Slack / Teams'
@@ -82,6 +82,8 @@ export function describeTrigger(t: Trigger, n: Names): string {
     }
     case 'email_received':
       return t.account_id ? `An email arrives in ${n.accounts?.find((a) => a.id === t.account_id)?.email ?? 'a removed account'}` : 'An email arrives'
+    case 'email_needs_follow_up':
+      return t.kind === 'reply' ? 'An email has waited too long for your reply' : t.kind === 'nudge' ? 'Your email got no answer in time' : 'An email needs follow-up'
     case 'email_no_reply':
       return `No reply ${t.days} day${t.days === 1 ? '' : 's'} after I send an email`
     case 'event_starts':
@@ -168,7 +170,7 @@ export function describeAction(a: Action, n: Names): string {
     case 'reply_to_email':
       return `Reply “${a.body.slice(0, 30)}${a.body.length > 30 ? '…' : ''}”`
     case 'start_sequence':
-      return `Start follow-up “${n.sequences?.find((s) => s.id === a.sequence_id)?.name ?? 'a deleted sequence'}”`
+      return 'Start a follow-up sequence (removed in 1.1: delete this action)'
     case 'mark_email_read':
       return 'Mark as read'
     case 'ai_prompt':

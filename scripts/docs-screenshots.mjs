@@ -39,6 +39,10 @@ const inbox = [
   }),
   mail({ from: 'Maya Chen <maya@example.org>', subject: 'Lunch next week?', id: 'l1@example.org', date: ago(60 * 20), text: 'Are you free for lunch on Tuesday or Wednesday?\n\nMaya' }),
   mail({ from: 'Cloudhost Billing <billing@cloudhost.example>', subject: 'Your invoice #4821 is ready', id: 'i1@cloudhost.example', date: ago(60 * 26), text: 'Your monthly invoice of $24.00 is ready. No action is needed; it will be charged automatically.' }),
+  mail({
+    from: 'Sam Rivera <sam@globex.example>', subject: 'Pricing for 200 seats', id: 'g1@globex.example', date: ago(60 * 24 * 3),
+    text: 'Hi Alex,\n\nWe are comparing offers this week. Could you send pricing for 200 seats, and tell us whether onboarding is included?\n\nThanks,\nSam'
+  }),
   mail({ from: 'Design Weekly <hello@designweekly.example>', subject: 'Design Weekly #142', id: 'n1@designweekly.example', date: ago(60 * 30), text: 'This week: colour systems, motion on the web and ten great portfolio sites.' })
 ]
 const sent = [
@@ -71,6 +75,7 @@ function answer(body) {
     if (/contract/i.test(prompt)) return json({ category: 'action', priority: 1, summary: 'Priya needs the signed contract by Friday.' })
     if (/timeline/i.test(prompt)) return json({ category: 'reply', priority: 1, summary: 'Daniel asks to move the design review to Thursday.' })
     if (/lunch/i.test(prompt)) return json({ category: 'reply', priority: 2, summary: 'Maya suggests lunch on Tuesday or Wednesday.' })
+    if (/200 seats/i.test(prompt)) return json({ category: 'reply', priority: 1, summary: 'Sam needs pricing for 200 seats and asks about onboarding.' })
     if (/invoice/i.test(prompt)) return json({ category: 'notification', priority: 3, summary: 'Monthly $24 invoice, charged automatically.' })
     return json({ category: 'newsletter', priority: 3, summary: 'Design newsletter: colour, motion, portfolios.' })
   }
@@ -85,6 +90,11 @@ function answer(body) {
       ],
       stop: 'tool_use'
     }
+  }
+  if (/follow-up emails/.test(JSON.stringify(body.system ?? ''))) {
+    if (/200 seats/i.test(prompt))
+      return text('Hi Sam,\n\nThanks for your patience. For 200 seats the price is $18 per seat per month on the annual plan, and onboarding is included: two live sessions for your team plus setup of your workspace.\n\nI can send the formal quote today. Would a 20-minute call on Thursday help to go through it?\n\nBest regards,\nAlex')
+    return text('Hi Jordan,\n\nI wanted to follow up on the redesign proposal we discussed on Thursday. Do you have any questions, or should I walk your team through it this week?\n\nBest regards,\nAlex')
   }
   return text('OK')
 }
@@ -236,7 +246,7 @@ try {
   await ev('Lunch with Maya', day(mon + 3, '12:00'), day(mon + 3, '13:00'), 'Café Nord')
   await ev('Weekly review', day(mon + 4, '16:00'), day(mon + 4, '16:45'))
   await ev('Design review with Daniel', day(1, '10:00'), day(1, '11:00'), 'Studio')
-  await call('createReminder', { task_id: created['Send signed contract to Northwind'].id, title: 'Call Priya about the contract', remind_at: day(1, '09:00') })
+  await call('createReminder', { task_id: created['Send signed contract to Northwind'].id, title: 'Call Priya about the contract', remind_at: dayAt(1, '09:00') })
 
   // ---- automations
   const rule = (name, trigger, actions, conditions = [], scope = null) => call('createAutomation', { name, enabled: true, scope, trigger, conditions, actions })
@@ -255,16 +265,51 @@ try {
   for (let i = 0; i < 60 && (await call('listThreads', { folder: 'all' })).length < 6; i++) await page.waitForTimeout(500)
   await call('aiTriageInbox')
   for (let i = 0; i < 60 && (await call('listThreads', { folder: 'inbox' })).some((t) => !t.ai); i++) await page.waitForTimeout(500)
-  const seq = await call('createSequence', {
-    name: 'Polite nudge', window: { days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00' }, daily_cap: 30,
-    steps: [
-      { wait_days: 3, body: 'Hi {{first_name}},\n\nJust bringing this back to the top of your inbox — any thoughts on the proposal?\n\nAlex' },
-      { wait_days: 5, body: 'Hi {{first_name}},\n\nI know things get busy. Should I check back next month instead?\n\nAlex' }
-    ]
-  })
   await call('saveEmailTemplate', { name: 'Proposal follow-up', subject: 'Following up on our proposal', body: 'Hi {{first_name}},\n\nI wanted to follow up on the proposal I sent last week…' })
   const threads = await call('listThreads', { folder: 'all' })
-  await call('enrollThread', threads.find((t) => t.subject === 'Proposal for the website redesign').id, seq.id)
+  // ---- follow-up (every day counts in the demo) and clients
+  await call('updateSettings', { followups: { workingDays: [0, 1, 2, 3, 4, 5, 6] } })
+  const team = await call('listTeam')
+  const hina = await call('saveTeamMember', { name: 'Hina Malik', email: 'hina@example.com' })
+  const co = async (name, domains, stage_id, people, extra = {}) => {
+    const c = await call('createCompany', { name, domains, stage_id, owner_id: team[0].id, ...extra })
+    const out = {}
+    for (const p of people) out[p.name] = await call('createPerson', { company_id: c.id, ...p })
+    return { c, p: out }
+  }
+  const northwind = await co('Northwind Traders', ['northwind.example'], 'stage-negotiation', [
+    { name: 'Priya Shah', designation: 'Head of Procurement', phone: '+1 415 555 0142', email: 'priya@northwind.example', action_owner: true },
+    { name: 'Tom Becker', designation: 'Legal Counsel', phone: '+1 415 555 0177', email: 'tom@northwind.example' }
+  ], { next_action: 'Send the signed contract', next_action_due: state.friday })
+  const acme = await co('Acme Corporation', ['acme.example'], 'stage-proposal', [
+    { name: 'Jordan Lee', designation: 'Marketing Director', phone: '+1 212 555 0108', email: 'jordan@acme.example', action_owner: true },
+    { name: 'Lena Ortiz', designation: 'Web Lead', phone: '+1 212 555 0133', email: 'lena@acme.example' },
+    { name: 'Chris Wong', designation: 'CFO', email: 'chris@acme.example' }
+  ], { next_action: 'Walk the team through the proposal' })
+  await co('Globex', ['globex.example'], 'stage-contacted', [{ name: 'Sam Rivera', designation: 'Operations Manager', phone: '+44 20 7946 0958', email: 'sam@globex.example', action_owner: true }])
+  await co('Studio North', ['studio.example'], 'stage-won', [{ name: 'Daniel Kim', designation: 'Design Director', email: 'daniel@studio.example' }], { type: 'partner' })
+  const dayAt = (n, hm) => {
+    const d = new Date(Date.now() - n * 86_400_000)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${hm}`
+  }
+  await call('logInteraction', {
+    company_id: acme.c.id, kind: 'meeting', channel: 'Zoom', mode: 'virtual', title: 'Redesign kickoff', at: dayAt(4, '15:00'), duration_min: 45, place: '',
+    summary: 'Walked through goals for the new site. Jordan wants a mobile-first redesign live before the spring campaign.', next_steps: 'Send the proposal by Monday',
+    person_ids: [acme.p['Jordan Lee'].id, acme.p['Lena Ortiz'].id], member_ids: [team[0].id, hina.id]
+  })
+  await call('logInteraction', {
+    company_id: acme.c.id, kind: 'call', channel: 'Phone', mode: null, title: '', at: dayAt(1, '11:30'), duration_min: 10, place: '',
+    summary: 'Chris confirmed the budget is approved for this quarter.', next_steps: '', person_ids: [acme.p['Chris Wong'].id], member_ids: [team[0].id]
+  })
+  await call('logInteraction', {
+    company_id: northwind.c.id, kind: 'meeting', channel: '', mode: 'office', title: 'Contract review', at: dayAt(0, '10:00'), duration_min: 60, place: 'Northwind HQ, 3rd floor',
+    summary: 'Agreed on payment terms (30 days). Tom will send the final contract.', next_steps: 'Sign and return by Friday',
+    person_ids: [northwind.p['Priya Shah'].id, northwind.p['Tom Becker'].id], member_ids: [team[0].id]
+  })
+  await call('logInteraction', {
+    company_id: northwind.c.id, kind: 'event', channel: '', mode: null, title: 'Web Summit 2026', at: dayAt(20, '14:00'), duration_min: null, place: 'Lisbon',
+    summary: 'Met Priya at our stand; interested in a pilot.', next_steps: '', person_ids: [northwind.p['Priya Shah'].id], member_ids: [hina.id]
+  })
   const contract = threads.find((t) => t.subject === 'Contract for the Q4 project')
   await call('createTaskFromThread', contract.id, clients.id)
   await call('updateSettings', { closeAsked: true })
@@ -302,10 +347,15 @@ try {
   await page.frameLocator('iframe[title="Email content"]').first().getByText('signed contract').waitFor()
   await shot('inbox')
 
-  await go('#/followups', () => page.getByText('Polite nudge').first().waitFor())
-  await page.getByRole('button', { name: 'In progress' }).click()
-  await page.getByText('Proposal for the website redesign').waitFor()
+  const pricing = (await call('listThreads', { folder: 'all' })).find((t) => t.subject === 'Pricing for 200 seats')
+  await go(`#/inbox?folder=followups&thread=${pricing.id}`, () => page.getByText('They’re waiting for your reply').waitFor())
+  await page.getByText('onboarding is included').first().waitFor()
   await shot('followups')
+
+  await go('#/clients', () => page.getByText('Acme Corporation').first().waitFor())
+  await page.getByRole('button', { name: 'Acme Corporation' }).click()
+  await page.getByText('Redesign kickoff').waitFor()
+  await shot('clients')
 
   await go('#/calendar', () => page.getByText('Design review with Daniel').first().waitFor())
   await shot('calendar')

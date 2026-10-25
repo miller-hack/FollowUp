@@ -19,6 +19,9 @@ Read the relevant ADR before changing the area it covers. If you want to change 
 | [011](011-editor-list-and-renderer-tests.md) | Tiptap 3 editor, virtualised List view, component tests | UI |
 | [012](012-ci-and-release-test-isolation.md) | The CI pipeline, and a release test that can never touch an installed FollowUp | Build |
 | [013](013-mail-provider-detection.md) | Adding an account starts from the address; the provider and servers are detected | Email |
+| [014](014-every-mail-folder.md) | Every server folder; a message stored once with all its locations; moves, drafts | Email |
+| [015](015-follow-up-in-the-inbox.md) | Follow-up in the Inbox (reply needed / waiting on them) replaces sequences | Email |
+| [016](016-clients.md) | Clients: companies, people, stages, team and their full history | Clients |
 
 ## Writing a new ADR
 

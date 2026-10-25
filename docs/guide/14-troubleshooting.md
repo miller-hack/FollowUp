@@ -71,17 +71,21 @@ Those messages are malformed or unusual. They stay on the server and the rest of
 
 ## Follow-ups
 
-**A follow-up didn't send.**
-Check its status in **Follow-ups → In progress**:
-- **active**, with a future time: it's waiting for its time or the send window. Outside the window (or after the daily cap) it waits for the next allowed time.
-- **replied** or **bounced**: it stopped, as designed.
-- **failed**: sending failed after retries (the reason is shown).
-- **PC was off for more than a day:** depending on **Settings → Email & follow-ups**, missed steps are sent late or skipped.
+**An email I expected isn't in Follow-up.**
+- **Not long enough yet:** "Reply needed" waits 24 working hours, "Waiting on them" 30; non-working days don't count. Open the conversation: its panel says when it moves to Follow-up.
+- **Someone on your side answered:** a reply from any connected mailbox, or from anyone at your company domain (Settings → Follow-up), counts.
+- **It isn't a real conversation:** auto-replies, newsletters, mailing lists and no-reply senders are ignored, and AI-sorted newsletters or notifications don't need a reply.
+- **Done, snoozed or dismissed:** Done conversations don't need a reply; snoozed or "No follow-up needed" ones come back later (open the conversation and click **Bring back**).
+- **Too old:** only the last 14 days are looked at (Settings → Follow-up → Look back).
 
-FollowUp must be running for follow-ups to send.
+**Internal emails show up in Follow-up.**
+Add your company's other domains in **Settings → Follow-up → Other company domains**.
 
-**It stopped although the person didn't really reply.**
-Any incoming message in the thread counts, including an auto-reply or out-of-office. That's deliberately cautious. Start the sequence again if needed.
+**The follow-up draft is a template, not written by AI.**
+AI isn't set up, or the request failed; the panel says why. See [AI](10-ai.md).
+
+**My old follow-up sequences are gone.**
+FollowUp 1.1 replaced automatic sequences with the Follow-up view. Sequences that were running stopped at the update, and nothing is sent automatically any more.
 
 ## Automations
 

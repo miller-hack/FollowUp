@@ -2,13 +2,13 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   ChevronDown, ChevronRight, CircleDot, Folder as FolderIcon, FolderPlus, Home, Layers, List as ListIcon, ListPlus, MoreHorizontal,
-  Palette, Pencil, Plus, Search, Settings, SlidersHorizontal, Trash2, FolderInput, LayoutDashboard, Target, Timer, Zap, Inbox, Send, CalendarDays, Sparkles, ArrowUpCircle
+  Palette, Pencil, Plus, Search, Settings, SlidersHorizontal, Trash2, FolderInput, LayoutDashboard, Target, Timer, Zap, Inbox, Send, CalendarDays, Sparkles, ArrowUpCircle, Building2
 } from 'lucide-react'
 import type { Folder, List, Space, Sprint } from '@shared/types'
 import { NotificationCenter } from '../notifications/NotificationCenter'
 import { RunningTimerBar } from '../time/timer'
 import { api } from '@/lib/api'
-import { useTreeMaps, useUnreadCount, useUpdateStatus } from '@/lib/hooks'
+import { useFollowUpCounts, useTreeMaps, useUnreadCount, useUpdateStatus } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import { useUi } from '@/stores/ui'
 import { ColorGrid, Dot, IconButton, InlineEdit, MenuItem, MenuSeparator, Popover } from '@/components/ui'
@@ -83,6 +83,9 @@ export function Sidebar() {
   const [statusSpace, setStatusSpace] = useState<Space | null>(null)
   const [fieldSpace, setFieldSpace] = useState<Space | null>(null)
   const { data: unread = 0 } = useUnreadCount()
+  const { data: fu } = useFollowUpCounts()
+  const followUps = (fu?.reply ?? 0) + (fu?.nudge ?? 0)
+  const { search } = useLocation()
   const { data: update } = useUpdateStatus()
 
   const toggle = (id: string) => {
@@ -249,7 +252,7 @@ export function Sidebar() {
   }
 
   return (
-    <nav className="flex h-full w-64 shrink-0 flex-col border-r border-line bg-sidebar">
+    <nav className="flex h-full w-full flex-col border-r border-line bg-sidebar">
       <div className="flex items-center gap-2 px-4 pt-4 pb-3">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-fg">F</div>
         <span className="text-[15px] font-semibold">FollowUp</span>
@@ -273,8 +276,9 @@ export function Sidebar() {
       <div className="px-2">
         {[
           { to: '/', icon: <Home size={15} />, label: 'Home', end: true },
-          { to: '/inbox', icon: <Inbox size={15} />, label: 'Inbox', end: true, badge: unread },
-          { to: '/followups', icon: <Send size={15} />, label: 'Follow-ups', end: true },
+          { to: '/inbox', icon: <Inbox size={15} />, label: 'Inbox', end: true, badge: unread, active: pathname === '/inbox' && !search.includes('folder=followups') },
+          { to: '/inbox?folder=followups', icon: <Send size={15} />, label: 'Follow-up', end: true, badge: followUps, active: pathname === '/inbox' && search.includes('folder=followups') },
+          { to: '/clients', icon: <Building2 size={15} />, label: 'Clients', end: true },
           { to: '/calendar', icon: <CalendarDays size={15} />, label: 'Calendar', end: true },
           { to: '/everything', icon: <Layers size={15} />, label: 'Everything', end: true },
           { to: '/dashboards', icon: <LayoutDashboard size={15} />, label: 'Dashboards', end: false },
@@ -286,7 +290,7 @@ export function Sidebar() {
             key={n.to}
             to={n.to}
             end={n.end}
-            className={({ isActive }) => cn('flex h-8 items-center gap-2.5 rounded-md px-2.5 hover:bg-hover', isActive && 'bg-hover font-medium')}
+            className={({ isActive }) => cn('flex h-8 items-center gap-2.5 rounded-md px-2.5 hover:bg-hover', ('active' in n ? n.active : isActive) && 'bg-hover font-medium')}
           >
             <span className="text-muted">{n.icon}</span>
             <span className="flex-1">{n.label}</span>

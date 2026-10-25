@@ -1,104 +1,105 @@
-# 7. Follow-up sequences
+# 7. Follow-up
 
-## What they're for
+## What it's for
 
-You sent a proposal, an invoice or a question, and nothing came back. A **follow-up sequence** remembers for you and sends polite reminders in the same email thread on a schedule you set. It **stops by itself the moment the other person replies**, so you never nag someone who already answered.
+Follow-up makes sure no conversation goes quiet by accident. It lives in the Inbox and answers two questions every day:
 
-Typical uses:
-- sales and proposals;
-- unpaid invoices;
-- job applications;
-- getting a decision or a document from someone.
+- **Reply needed:** who has been waiting more than a day for an answer from you or your team?
+- **Waiting on them:** which of your emails got no answer?
 
-![Follow-ups in progress](../images/followups.png)
+Open a conversation there and FollowUp writes the follow-up email for you from the whole conversation. You read it, change what you like, and click **Send follow-up**. Nothing is ever sent without that click.
+
+![Follow-up](../images/followups.png)
 
 ## Key ideas
 
 | Term | Meaning |
 |---|---|
-| **Sequence** | A reusable plan: a list of **steps**, each "wait *N* days, then send this message". Plus a **send window** (days and hours) and a **daily cap**. |
-| **Enrollment** | One email thread going through a sequence. Statuses: *active*, *replied*, *completed*, *stopped*, *bounced*, *failed*. |
-| **Step message** | Sent as a **reply in the same thread** (subject "Re: …"), with your text. Variables: `{{first_name}}`, `{{name}}`, `{{subject}}`. |
+| **Us** | You and your team. That means every mailbox connected to FollowUp, plus your company's email domains: your mailboxes' own domains (except public ones like gmail.com) and any you add in Settings → Follow-up. A reply from a teammate counts, for example when you were in copy. |
+| **Reply needed** | The latest real email in a conversation came from outside, and nobody on your side has answered for **24 working hours** (you can change this). |
+| **Waiting on them** | The latest real email is yours (or a teammate's), it went to someone outside, and they haven't answered for **30 working hours** (you can change this). |
+| **Working hours** | Only working days count (Monday–Friday unless you change it). An email that arrives on Friday evening needs a reply by Monday evening, not Saturday. |
+| **Real email** | Auto-replies, out-of-office messages, mailing lists, newsletters, robots (no-reply…), drafts, and anything in Spam or Trash don't count. |
 
 ## How to use it
 
-### 1. Create a sequence
-**Follow-ups → Sequences → New sequence**. A new sequence starts from a sensible default you can edit:
+### 1. Open Follow-up
+Click **Follow-up** in the left sidebar or in the Inbox's folder list. The number next to it is how many conversations need attention now.
 
-- **Name**, e.g. *Proposal follow-up*.
-- **Steps:** for each step:
-  - **Days to wait** after the previous email (fractions work: `0.5` = 12 hours);
-  - the **message**.
+- The **tabs** at the top filter: **All**, **Reply needed**, **Waiting on them**.
+- The list is **sorted by priority**: emails AI marked as important first (when AI sorting is on), then the ones that have waited longest.
+- Each row says how long it has waited ("Waiting for your reply for 3 days", "No answer to your email for 2 days"). It also shows the client company and stage when the person is in [Clients](15-clients.md).
 
-  The default is two steps: after 3 days *"Just bumping this up…"* and after 4 more days *"Following up one last time on '{{subject}}'…"*. Add steps with **＋**.
-- **Only send on:** days of the week (default Mon–Fri) and hours (default 09:00–17:00).
-- **Daily cap:** the maximum number of follow-ups this sequence sends per day (default 30). Keeps you from looking like a bulk mailer.
+### 2. Write the follow-up
+Click a conversation. Above the messages, a yellow panel says who is waiting and since when, and a draft is ready below it:
 
-**Save sequence.** Editing a sequence later affects people already in it from their next step. If you remove steps, enrollments that are past the new last step are marked *completed*.
+- **To / Cc** are filled in for you:
+  - **Reply needed:** the person who wrote, with the other outside people from their email in Cc.
+  - **Waiting on them:** the people you wrote to.
+- **Subject:** "Re: …", so it stays in the same conversation for everyone.
+- **The text:**
+  - With AI set up ([AI](10-ai.md)), it's written from the last 10 messages of the conversation. It also uses the client's company, stage and latest logged calls or meetings, so it can say "as discussed on Thursday…".
+  - Without AI, it's a short polite template to complete.
+- **Rewrite:** type what to change ("mention the revised price", "shorter", "more formal") and click **Rewrite**.
+- **Send follow-up** sends it, as a reply in the conversation. **Save as draft** keeps it in your Drafts folder (also on the server). **Discard** throws the draft away.
 
-### 2. Start following up
-- **From the Inbox:** open the thread (usually your sent email) → **Follow up ▾** → choose a sequence.
-- **From the AI assistant:** *"start the Polite nudge follow-up on my proposal to Jordan"*. You approve it first.
-- **From an automation:** action **Start a follow-up sequence**, typically with the trigger **A sent email gets no reply** (after N days) or **An email arrives**.
+Outside the Follow-up view, the same panel appears on any conversation that is waiting. There it doesn't write a draft until you click **Write follow-up**.
 
-**Who receives it:** the recipients of **your last email** in the thread. If you haven't written in the thread, it goes to the person who last wrote to you.
+### 3. Snooze or dismiss
+- **Snooze** (tomorrow 9:00, in 3 days, next Monday, in 2 weeks) hides the conversation until then.
+- **No follow-up needed** hides it until a new message arrives in that conversation. Use it for "thanks!" emails.
+- **Bring back** undoes either.
 
-A thread can only have **one active follow-up**; starting a new one stops the old one ("Replaced by a new follow-up").
+### 4. It leaves Follow-up when…
+- someone on your side replies (from FollowUp or from any connected mailbox, or a teammate from your company domain);
+- they reply to you;
+- you mark the conversation **Done**, move it to Spam or Trash, or it gets older than the look-back period (14 days by default).
 
-### 3. Watch it
-- **Inbox:** the thread shows a chip such as *"Polite nudge · 1/2"*, and the thread view has a bar: *"Follow-up Polite nudge · step 1/2 · next email Wed Oct 21, 09:00"*, with **Stop**.
-- **Inbox → Follow-ups folder:** every thread with an active sequence.
-- **Follow-ups → In progress:** everyone being followed up, with their status, step, next send time (or why it stopped) and a stop button.
+Your follow-up starts a new clock: after you answer a "reply needed" email, the conversation becomes "waiting on them" if they then don't answer.
 
-### 4. It stops when…
+## Settings
+**Settings → Follow-up:**
 
-| Event | Enrollment becomes |
-|---|---|
-| **Anyone replies** in the thread (an incoming message) | *replied* ("ana@client.com replied") |
-| The email **bounces** (from mailer-daemon/postmaster, or a subject like "Undeliverable" / "Delivery Status Notification") | *bounced* |
-| **You reply yourself** from FollowUp | *stopped* ("You replied") |
-| You press **Stop** | *stopped* |
-| The last step has been sent | *completed* |
-| Sending fails after all retries | *failed* (with the reason) |
+| Setting | Default | What it does |
+|---|---|---|
+| Your mailboxes' own domains | On | Treats e.g. everyone `@yourcompany.com` as your team |
+| Other company domains | — | More domains that count as your team (subsidiaries, old domains) |
+| Working days | Mon–Fri | Only these days count towards the waiting time |
+| "Reply needed" after | 1 working day | 4, 8, 12 hours or 1, 2, 3 working days |
+| "Waiting on them" after | 30 working hours | 1, 2, 3, 5 or 7 working days |
+| Look back | 14 days | Older conversations are never brought up |
+| Daily reminder | On | One notification at your daily summary time when something needs follow-up |
 
 ## Email templates
-
-**Follow-ups → Email templates** holds reusable emails (name, optional subject, body). Use them in **Compose → Insert template…**; when the subject field is empty, the template's subject is used too. Templates are for emails you write yourself. Sequence steps have their own text.
+Templates are still available in **Compose → Insert template…**. They support `{{first_name}}`, `{{name}}` and `{{subject}}`.
 
 ## Behind the scenes
-
-- **Code:** `src/main/services/mail/sequences.ts`; sending via `src/main/services/mail/send.ts`.
-- **Scheduling:**
-  - When you enroll a thread, the first send time = now + step 1's wait, moved forward into the send window if needed (`nextWindowStart`).
-  - After each send, the next step is scheduled from that moment + its wait, again moved into the window.
-- **The tick:** every 30 seconds, `sequenceTick` finds active enrollments that are due. It marks each one "in flight" so it's never queued twice, and queues a `sequence_step` job (3 attempts). The job (`runSequenceStep`) then:
-  1. **Safety net:** checks for any incoming message since enrollment. If there is one, it stops (*replied*, or *bounced*) instead of sending.
-  2. **Missed while the PC was off:** if the step is more than 24 hours late, it follows **Settings → Email & follow-ups → Follow-ups that came due while this PC was off**: *Send them* (default) or *Skip them*. Skipping moves on to the next step without sending.
-  3. **Send window:** outside the window, it reschedules to the next window start.
-  4. **Daily cap:** if this sequence already queued its cap today, it reschedules to tomorrow's window.
-  5. Otherwise it **queues the reply**, threaded under the latest message, with the "Re:" subject and personalised text. Then it schedules the next step, or marks the enrollment *completed*.
-- **Personalisation:**
-  - `{{name}}` is the recipient's display name. If the address has no name, FollowUp looks for a name from earlier mail from that address, or turns `jordan.lee@…` into "jordan lee".
-  - `{{first_name}}` is the first word, capitalised; "there" is used when nothing is known.
-  - `{{subject}}` is the thread's original subject.
-- **Reply detection** happens during mail sync: when a new incoming message is stored, `onInboundReply` stops the thread's active enrollment in the same transaction.
-- **Sending:**
-  - Follow-up emails use the normal outbox (5 attempts). If an email finally fails, its enrollment becomes *failed* with the error.
-  - Follow-ups only go out **while FollowUp is running**. Keep it in the tray, and consider *Start FollowUp when I sign in to Windows*.
+- **Where the logic lives:** `src/main/services/mail/followups.ts`, `followupDraft.ts`, and `aiDraftFollowUp` in `ai/features.ts`. The design is in [ADR-015](../decisions/015-follow-up-in-the-inbox.md).
+- **The rule** (`followUpState`) looks at the conversation's latest real message:
+  - if the sender isn't "us", it's **reply**;
+  - if it's ours and went to at least one outside address, it's **nudge**;
+  - otherwise (an internal email) it's nothing.
+- **Due time:** the waiting time is added in working hours (`addWorkingHours`). Each day that isn't a working day is skipped entirely.
+- **Stored on the conversation:** the kind, the message the clock started from, and the due time. FollowUp recomputes them:
+  - after every sync and every email sent;
+  - when you change the settings or add or remove an account;
+  - every 5 minutes (the clock moves on).
+- **Snooze and dismiss:** a snooze stores a time. "No follow-up needed" remembers the message it applied to, so a new message brings the conversation back.
+- **The draft** is generated only when you open the conversation (no AI cost for ones you skip), and never sent automatically. Sending goes through the normal outbox: retried if the server is busy, and never sent twice ([ADR-004](../decisions/004-at-most-once-email-send.md)).
+- **Daily reminder:** once a day after your digest time, if anything is due.
 
 ## How it connects
 
 | Feature | Connection |
 |---|---|
-| [Email](06-email.md) | Runs on synced threads; replies stop it |
-| [Automations](09-automations.md) | **Start a follow-up sequence** action; the **A sent email gets no reply** trigger (which skips threads that already have an active follow-up) |
-| [AI assistant](10-ai.md) | Tools `list_follow_up_sequences` and `start_follow_up` (with approval) |
+| [Email](06-email.md) | Follow-up is a view of your synced mail; replies sent anywhere count |
+| [Clients](15-clients.md) | Rows show the client's company and stage; drafts use the client's latest logged contact |
+| [Automations](09-automations.md) | Trigger **"An email needs follow-up"** (either kind, or only one) runs once per waiting email, e.g. to create a task or notify a teammate |
+| [AI](10-ai.md) | Writes the drafts; sorts by AI priority; the assistant can list what needs follow-up (`list_follow_ups`) |
 
 ## Examples
+- **Sales:** a buyer asks for prices on Tuesday and you're travelling. On Wednesday afternoon the email is in **Reply needed**, and the draft already answers with what was in the thread. Your colleague in copy replied in the meantime? Then it never shows up.
+- **Vendors:** you asked a supplier for delivery dates on Thursday. On Friday evening (30 working hours later, counting Thursday and Friday) it appears in **Waiting on them** with a short, friendly nudge ready to send.
+- **Not every email needs an answer:** "Thanks, received!" goes to **No follow-up needed** with one click.
 
-- **Proposal nudge:**
-  - Steps: 3 days *"Hi {{first_name}}, any thoughts on the proposal?"*; 5 days *"Should I check back next month instead?"*.
-  - Window: weekdays 09:00–17:00.
-  - Started from the sent proposal.
-- **Invoice reminder:** 7 days *"A friendly reminder that invoice for {{subject}} is due"*; 7 days *"Second reminder…"*; 14 days *"Final reminder…"*. Daily cap 20.
-- **Hands-free:** an automation **"A sent email gets no reply in 3 days" → Start "Proposal nudge"** follows up on every unanswered email you send, without you clicking anything. (Narrow it with conditions such as *subject contains "proposal"*.)
+> **Coming from 1.0?** Automatic follow-up sequences were replaced by this view. Sequences that were running stopped when you updated, and automation rules that started sequences were switched off (they say so in Automations).

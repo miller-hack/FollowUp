@@ -22,7 +22,7 @@ Every feature is described in the same order, so you can stop reading at the dep
 | 4 | [Views](guide/04-views.md) | List, Board, Calendar and Gantt views; filters, grouping and sorting; bulk edit; Everything; Home |
 | 5 | [Planning](guide/05-planning.md) | Time tracking and timesheets, sprints and burndown, goals and key results, dashboards, reminders and notifications |
 | 6 | [Email](guide/06-email.md) | Connecting accounts, how sync works, reading safely, replying and composing, email ↔ task links |
-| 7 | [Follow-ups](guide/07-follow-ups.md) | Follow-up sequences, send windows, daily caps, stop rules, email templates |
+| 7 | [Follow-up](guide/07-follow-ups.md) | Reply needed / waiting on them, working days, AI-written follow-ups, snooze, settings |
 | 8 | [Calendar](guide/08-calendar.md) | Local and CalDAV calendars, events, task due dates, block time, .ics export |
 | 9 | [Automations](guide/09-automations.md) | The rules engine in depth: every trigger, condition, action and variable; testing; loop protection; recipes |
 | 10 | [AI](guide/10-ai.md) | Providers and models, the assistant and its tools, inline AI, inbox triage, privacy and cost |
@@ -30,6 +30,7 @@ Every feature is described in the same order, so you can stop reading at the dep
 | 12 | [Settings & data](guide/12-settings-and-data.md) | Every setting, backups and restore, export, maintenance, moving to a new PC, the security and privacy model |
 | 13 | [Scenarios](guide/13-scenarios.md) | End-to-end workflows that combine features for real situations |
 | 14 | [Troubleshooting](guide/14-troubleshooting.md) | Common problems, what causes them and how to fix them |
+| 15 | [Clients](guide/15-clients.md) | Companies and their people, stages, owners, logged calls and meetings, import/export |
 
 ## Developer documentation
 
@@ -55,8 +56,8 @@ Every feature is described in the same order, so you can stop reading at the dep
 | **List** | Where tasks live (e.g. *Website Launch*). |
 | **Status type** | Every status is *open*, *active* or *done*. Only *done* counts as finished. |
 | **Location** | A space, folder, list or sprint: anything you can open as a view or scope an automation to. |
-| **Sequence** | A follow-up plan: "wait N days → send this reply", repeated until someone answers. |
-| **Enrollment** | One email thread running through a sequence. |
+| **Follow-up** | A conversation waiting too long for a reply: from you (*Reply needed*) or from them (*Waiting on them*). |
+| **Interaction** | A logged call, chat, meeting, event or note with a client, with who took part. |
 | **Automation / rule** | *When* a trigger fires, *if* conditions pass, *then* run actions. |
 | **Job** | A unit of background work stored in the database (sending an email, running a rule…), retried if it fails. |
 | **Domain event** | An internal signal such as "task status changed" or "email received" that automations listen to. |

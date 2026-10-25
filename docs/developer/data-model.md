@@ -88,16 +88,30 @@ The JSON shapes for `trigger`, `conditions` and `actions` are the TypeScript typ
 | Table | Columns | Notes |
 |---|---|---|
 | `accounts` | `kind` (`mail/caldav`), `name`, `email`, `config` (JSON `MailAccountConfig` or `CalDavConfig`), `secret` (encrypted app password **or** OAuth refresh token), `enabled`, `sync_state` (JSON per folder: `uidValidity`, `lastUid`), `last_sync_at`, `last_error` | |
-| `mail_threads` | `account_id`, `subject`, `norm_subject`, `done`, `last_message_at`, `ai_category`, `ai_priority`, `ai_summary`, `ai_triaged_at` | |
-| `mail_messages` | `account_id`, `thread_id`, `folder`, `uid`, `message_id`, `in_reply_to`, `refs` (JSON), `from_name`, `from_addr`, `to_addrs`/`cc_addrs` (JSON), `subject`, `date`, `snippet`, `body_text`, `body_html` (sanitised; inline images as `cid:`), `is_read`, `is_outbound`, `is_inbox`, `has_attachments`, `is_auto` | UNIQUE (`account_id`, `message_id`) |
+| `mail_threads` | `account_id`, `subject`, `norm_subject`, `done`, `last_message_at`, `ai_category`, `ai_priority`, `ai_summary`, `ai_triaged_at`, `followup_kind` (`reply`/`nudge`), `followup_anchor` (message the clock started from), `followup_since`, `followup_due_at`, `followup_snoozed_until`, `followup_dismissed_for` | Follow-up state: ADR-015 |
+| `mail_messages` | `account_id`, `thread_id`, `folder`, `uid`, `message_id`, `in_reply_to`, `refs` (JSON), `from_name`, `from_addr`, `to_addrs`/`cc_addrs` (JSON), `subject`, `date`, `snippet`, `body_text`, `body_html` (sanitised; inline images as `cid:`), `is_read`, `is_outbound`, `is_inbox` (follows the server's inbox), `has_attachments`, `is_auto`, `is_draft` (1 draft, 2 discarded and waiting for the server) | UNIQUE (`account_id`, `message_id`); `folder`/`uid` = first place seen (kept for compatibility) |
+| `mail_folders` | `account_id`, `path`, `name`, `delimiter`, `role` (`inbox/sent/drafts/spam/trash/archive/all` or NULL), `uid_validity`, `last_uid`, `position` | Every server folder: ADR-014 |
+| `mail_locations` | `message_id`, `account_id`, `folder`, `uid` (−1 = just moved, waiting for the next sync) | Where each message is on the server (PK `message_id`, `folder`) |
 | `mail_attachments` | `message_id`, `filename`, `mime`, `size`, `stored_path`, `inline` (1 = picture shown in the body), `content_id` | Files under `mail\<account>\` |
 | `mail_fts` | FTS5: `message_id`, `subject`, `sender`, `body` | |
 | `email_task_links` | `thread_id`, `task_id` | |
 | `outbox` | `account_id`, `to_addrs`, `cc_addrs`, `subject`, `body`, `in_reply_to`, `refs`, `thread_id`, `status` (`queued/sent/failed`), `error`, `sent_at`, `source` (`manual/sequence/automation`), `enrollment_id`, `message_id` | |
 | `email_templates` | `name`, `subject`, `body` | |
-| `sequences` | `name`, `send_window` (JSON `{days, start, end}`), `daily_cap` | |
+| `sequences` | `name`, `send_window` (JSON `{days, start, end}`), `daily_cap` | Retired in 1.1 (kept for downgrades) |
 | `sequence_steps` | `sequence_id`, `position`, `wait_days`, `body` | |
 | `sequence_enrollments` | `sequence_id`, `thread_id`, `account_id`, `to_addrs`, `status` (`active/replied/completed/stopped/bounced/failed`), `current_step`, `next_run_at` (NULL while a step is in flight), `enrolled_at`, `last_sent_at`, `last_queued_at`, `stopped_reason` | |
+
+## Clients
+
+| Table | Columns | Notes |
+|---|---|---|
+| `team_members` | `name`, `email`, `position` | Your side; the user is added first |
+| `crm_stages` | `name`, `color`, `kind` (`open/won/lost/hold`), `position` | Defaults: Lead … On hold |
+| `companies` | `name`, `domains` (JSON), `type` (`client/vendor/partner/other`), `stage_id`, `owner_id` → team_members, `next_action`, `next_action_due`, `notes`, `position` | |
+| `people` | `company_id`, `name`, `designation`, `phone`, `email`, `other_emails` (JSON), `action_owner`, `owner_id`, `next_action`, `next_action_due`, `notes`, `position` | Indexed by company and email |
+| `interactions` | `company_id`, `kind` (`call/chat/meeting/event/note`), `channel`, `mode` (`in_person/office/virtual`), `title`, `at` (local), `duration_min`, `place`, `summary`, `next_steps`, `task_id` | Emails are not copied: they come from `mail_messages` by address |
+| `interaction_people`, `interaction_members` | `interaction_id` + `person_id` / `member_id` | Who took part on each side |
+| `crm_ignored` | `address` | Hidden from "From email" suggestions |
 
 ## Calendar
 
@@ -125,7 +139,7 @@ The JSON shapes for `trigger`, `conditions` and `actions` are the TypeScript typ
 
 | Key | Value |
 |---|---|
-| `app` | The `Settings` object (`src/shared/types.ts`). Defaults are in `DEFAULT_SETTINGS` (`services/meta.ts`). Stored values are merged over the defaults, so new settings need no migration. |
+| `app` | The `Settings` object (including `followups` and `ui.widths`, the remembered panel and column widths) (`src/shared/types.ts`). Defaults are in `DEFAULT_SETTINGS` (`services/meta.ts`). Stored values are merged over the defaults, so new settings need no migration. |
 | `view:<kind>:<id>` and `everything` | Saved `ViewConfig` per location |
 | `secret:anthropic`, `secret:openai`, `secret:oauth_google`, `secret:oauth_microsoft` | Encrypted secrets (never exported, never sent to the window) |
 | `maintenance:*` | One-time conversion markers, e.g. `maintenance:inline-images-v1` |
@@ -142,6 +156,8 @@ The JSON shapes for `trigger`, `conditions` and `actions` are the TypeScript typ
 | 6 | Integrations, `slack_imported` |
 | 7 | Hot-path indexes; `mail_messages.is_auto` |
 | 8 | `mail_attachments.inline`, `content_id` + index |
+| 9 | Follow-up columns on threads; sequences stopped and their rules switched off; `mail_folders`, `mail_locations` (filled from 1.0's folder/uid); `mail_messages.is_draft` |
+| 10 | Clients: `team_members`, `crm_stages` (with defaults), `companies`, `people`, `interactions`, `interaction_people`, `interaction_members`, `crm_ignored` |
 
 **Rules for new migrations:**
 1. **Append** a new SQL string to `MIGRATIONS`. Never edit or reorder existing ones, because users' databases have already run them.
