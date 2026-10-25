@@ -53,7 +53,7 @@ Your organisation only lets approved apps read mail. Ask your IT administrator t
 A Google OAuth client in *Testing* mode issues sign-ins that expire after 7 days. Publish or verify your OAuth app in Google Cloud, or use an app password account instead.
 
 **New mail doesn't appear.**
-- FollowUp must be running; it syncs every *N* minutes (**Settings → Email & follow-ups**).
+- FollowUp must be running; it syncs every *N* minutes (**Settings → Email**).
 - Click ⟳ in the Inbox.
 - Check the account card for an error.
 - Only **INBOX** and **Sent** are synced; mail that your provider files into other folders won't show.

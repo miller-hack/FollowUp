@@ -6,7 +6,7 @@ const base = `id TEXT PRIMARY KEY,
   deleted_at TEXT`
 
 /** Each entry is applied once, in order; PRAGMA user_version tracks progress. */
-const MIGRATIONS: string[] = [
+export const MIGRATIONS: string[] = [
   `
   CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 

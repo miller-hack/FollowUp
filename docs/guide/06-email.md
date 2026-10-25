@@ -110,7 +110,7 @@ Each account shows its address and when it last synced (or the last error). It a
 Email is the most common way attacks arrive, so FollowUp is strict:
 
 - **Scripts, forms, embedded frames and event handlers are removed**, and the message is shown in a **sandboxed** frame that can't run code or navigate.
-- **Remote images are blocked** by default, because they can tell the sender that (and when) you opened the email. Click **Show images** for one message, or turn on **Settings → Email & follow-ups → Load remote images**.
+- **Remote images are blocked** by default, because they can tell the sender that (and when) you opened the email. Click **Show images** for one message, or turn on **Settings → Email → Load remote images**.
 - **Links** open in your normal browser.
 - **Pictures inside emails** (logos, signatures) are stored once per account as files, and shown from your disk.
 - **Attachments:**

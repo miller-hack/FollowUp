@@ -4,6 +4,37 @@ All notable changes to FollowUp are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-26
+
+### Added
+- **Follow-up in the Inbox.**
+  - **Reply needed:** someone has waited a working day for an answer from you or your team.
+  - **Waiting on them:** your email got no answer in 30 working hours.
+  - Weekends (non-working days) don't count. Replies from colleagues at your company domain count. Auto-replies, newsletters and robots are ignored.
+  - Open a conversation and the follow-up email is already written from the whole conversation (by AI when it's set up, a template otherwise). Edit it and click **Send follow-up**; nothing is ever sent without that click.
+  - Snooze, "No follow-up needed", a daily reminder, and **Settings → Follow-up** for company domains, working days and waiting times.
+- **Clients:** an Excel-like table of companies and their people.
+  - Columns: designation, phone, work email, stage, who answers, who acts on their side, who owns them on your team, next action and due date.
+  - **Log calls, WhatsApp chats, meetings** (in person, at their office, online) and **exhibitions**, with exactly which of their people and your team took part. A company's or person's history shows these together with all their emails.
+  - Add people **from your email** in one click.
+  - **Import** from Excel or CSV (with column matching and no duplicates); **export** to Excel or CSV.
+  - Editable stages, and your team.
+- **Every mail folder:** Drafts, Sent, Archive, Spam, Trash and your own folders. **Archive**, **Spam / Not spam**, **Delete / Restore**, **Delete forever** (from Spam or Trash) and **Move** work on the server too.
+- **Drafts:** **Save draft** in Compose keeps it in your server's Drafts folder (so it's on your phone too); edit or discard it later.
+- **Resizable layout:** drag to resize the sidebar, the Inbox's folder list, email list and reading pane, the task panel, and the columns of the List view and the Clients table. Widths are remembered; double-click an edge to reset it.
+- Automation trigger **"An email needs follow-up"**; AI assistant tools to list follow-ups, find a client and log a call or meeting (with your approval).
+
+### Changed
+- **Follow-up sequences were removed** and replaced by the Follow-up view. Sequences that were running stop when you update, and automation rules that started sequences are switched off. Email templates stay (Compose → Insert template).
+- A message that is in several folders (for example Gmail labels) is stored and downloaded once.
+- Messages you delete or move on another device disappear here at the next sync.
+
+### Fixed
+- Replying to someone whose name contains a comma (for example "Lima, Ana") no longer fails with "not a valid email address".
+
+### Security
+- Recipients are read by FollowUp itself (quotes and brackets respected) and handed to the mail library as plain addresses, so a crafted sender name can never add a hidden recipient to your reply.
+
 ## [1.0.1] - 2026-10-24
 
 ### Changed
@@ -76,7 +107,8 @@ The first complete version, built in six phases:
 - **Phase 5, AI:** the assistant (Claude, OpenAI, Ollama) with approval cards, triage, Quick add, summaries, weekly review.
 - **Phase 6, integrations and release:** Slack and Teams, Sign in with Google/Microsoft, the Windows installer, auto-update, `.ics` export.
 
-[Unreleased]: https://github.com/miller-hack/FollowUp/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/miller-hack/FollowUp/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/miller-hack/FollowUp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/miller-hack/FollowUp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/miller-hack/FollowUp/releases/tag/v1.0.0
 [0.6.1]: https://github.com/miller-hack/FollowUp/blob/main/docs/developer/project-history.md#20-hardening-release-061-full-code-review

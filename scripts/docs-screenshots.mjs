@@ -246,7 +246,7 @@ try {
   await ev('Lunch with Maya', day(mon + 3, '12:00'), day(mon + 3, '13:00'), 'Café Nord')
   await ev('Weekly review', day(mon + 4, '16:00'), day(mon + 4, '16:45'))
   await ev('Design review with Daniel', day(1, '10:00'), day(1, '11:00'), 'Studio')
-  await call('createReminder', { task_id: created['Send signed contract to Northwind'].id, title: 'Call Priya about the contract', remind_at: dayAt(1, '09:00') })
+  await call('createReminder', { task_id: created['Send signed contract to Northwind'].id, title: 'Call Priya about the contract', remind_at: day(1, '09:00') })
 
   // ---- automations
   const rule = (name, trigger, actions, conditions = [], scope = null) => call('createAutomation', { name, enabled: true, scope, trigger, conditions, actions })

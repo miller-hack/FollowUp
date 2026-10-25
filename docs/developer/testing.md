@@ -27,7 +27,11 @@ beforeEach(() => {
 | `tasks.test.ts` | Spaces, lists and statuses, tasks and subtasks, recurrence, dates |
 | `phase2.test.ts` | Time tracking, goals, sprints, dashboards, notifications |
 | `automation.test.ts` | Event and time-based triggers, conditions, actions, scopes, loop safety, the job queue and dry runs |
-| `mail.test.ts` | Mail parsing, accounts and sync, sending, follow-up sequences, email automations, calendar (fake IMAP + SMTP) |
+| `mail.test.ts` | Mail parsing, accounts and sync, sending, email automations, calendar (fake IMAP + SMTP) |
+| `followup.test.ts` | Follow-up rules, working days, teammates, dismiss and snooze, drafts, the follow-up trigger; every server folder, moves, deletion elsewhere, delete forever, server drafts (ADR-014, 015) |
+| `crm.test.ts` | Clients: validation, stages, team, logged interactions and who took part, the merged history, suggestions from email, CSV and Excel import/export (ADR-016) |
+| `detect.test.ts` | Finding a mail provider from an address: known domains, MX, autoconfig, common host names (ADR-013) |
+| `upgrade.test.ts` | A real 1.0 database upgraded to the current schema: mail locations, retired sequences, Clients |
 | `ai.test.ts` | The Claude provider and assistant loop, keys, triage, AI automations, the OpenAI-compatible provider (fake servers) |
 | `phase6.test.ts` | Slack and Teams, Sign in with Google (OAuth, token refresh), `.ics` export (fake servers) |
 | `hardening.test.ts` | Security and robustness rules from the code review (ADR-001 to 008) |

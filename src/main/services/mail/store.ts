@@ -635,8 +635,8 @@ function decorate(
 ): MailThread[] {
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const msgs = all<{ thread_id: string; from_name: string; from_addr: string; is_outbound: number; snippet: string; date: string }>(
-    `SELECT thread_id, from_name, from_addr, is_outbound, snippet, date FROM mail_messages WHERE thread_id IN (${marks(ids.length)}) ORDER BY date`,
+  const msgs = all<{ thread_id: string; from_name: string; from_addr: string; to_addrs: string; is_outbound: number; snippet: string; date: string }>(
+    `SELECT thread_id, from_name, from_addr, to_addrs, is_outbound, snippet, date FROM mail_messages WHERE thread_id IN (${marks(ids.length)}) AND is_draft < 2 ORDER BY date`,
     ...ids
   )
   const links = all<{ thread_id: string; task_id: string }>(`SELECT thread_id, task_id FROM email_task_links WHERE thread_id IN (${marks(ids.length)})`, ...ids)
@@ -646,6 +646,9 @@ function decorate(
     const mine = msgs.filter((m) => m.thread_id === r.id)
     const people = new Map<string, MailAddress>()
     for (const m of mine) people.set(m.from_addr, { name: m.is_outbound ? 'me' : m.from_name, address: m.from_addr })
+    // a conversation only you have written in: show who you wrote to
+    if (mine.every((m) => m.is_outbound))
+      for (const m of mine) for (const a of JSON.parse(m.to_addrs) as MailAddress[]) if (!people.has(a.address)) people.set(a.address, { name: a.name, address: a.address })
     return {
       id: r.id,
       account_id: r.account_id,

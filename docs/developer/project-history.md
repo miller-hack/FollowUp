@@ -489,3 +489,17 @@ The first full release. Its problems were found on a real installation of 0.6.1;
   - `npm audit`: 0 advisories.
 
 Still open: code signing. It needs a certificate, or an Azure Trusted Signing account, in the publisher's name; until then Windows SmartScreen shows a warning on first install.
+
+## 22. Release 1.0.1 — account setup
+
+Real users couldn't add accounts. Adding an account now starts from the address: the provider and servers are detected from well-known domains, MX records (Google Workspace, Microsoft 365, …), autoconfig and common host names, and only the needed sign-in or password is asked for, with the connection tested first ([ADR-013](../decisions/013-mail-provider-detection.md)). Built-in Google/Microsoft sign-in IDs can be supplied at build time.
+
+## 23. Release 1.1.0 — Follow-up, Clients, every folder
+
+Designed with the maintainer from their team's way of working (spec in the maintainer's notes; decisions in [ADR-014 to 016](../decisions/README.md)):
+- **Follow-up in the Inbox** replaces sequences. *Reply needed* and *Waiting on them* are counted in working hours, teammates' replies count, and an AI- or template-written follow-up waits for approval.
+- **Clients:** companies, people, stages, team, logged calls, chats, meetings and events with who took part, a history merged with emails, suggestions from email, and Excel/CSV import and export.
+- **Every server folder**, stored once per message with all its locations; server-side archive, spam, delete, restore and move; server drafts.
+- **Resizable** sidebar, Inbox panes, task panel and table columns.
+- **Security:** recipient lists are parsed by FollowUp and passed as structured addresses (nodemailer addressparser advisories).
+- **Schema:** migrations 9 and 10. **Tests:** `followup`, `crm`, `detect` and `upgrade` test files; E2E steps for Follow-up, Clients, Spam and resizing.
